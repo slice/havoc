@@ -8,16 +8,15 @@ pub enum Branch {
 }
 
 /// A kind of frontend asset.
-///
-/// Here we model the most common types, but you can specify your own custom
-/// one.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FeAssetType {
     Css,
     Js,
     Ico,
     Svg,
-    Custom(String),
+    Webm,
+    Webp,
+    Gif,
 }
 
 impl FeAssetType {
@@ -30,7 +29,9 @@ impl FeAssetType {
             Js => "js",
             Ico => "ico",
             Svg => "svg",
-            Custom(ext) => &ext,
+            Webm => "webm",
+            Webp => "webp",
+            Gif => "gif",
         }
     }
 }
