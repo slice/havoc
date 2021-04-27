@@ -1,8 +1,8 @@
 use std::io;
 
-use thiserror::Error;
 use isahc::prelude::*;
 use regex::Regex;
+use thiserror::Error;
 
 use crate::discord;
 
@@ -28,10 +28,13 @@ pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeErro
     }
 
     let collect_assets = |regex: &Regex, typ: discord::FeAssetType| {
-        regex.captures_iter(&text).map(|caps| discord::FeAsset {
-            name: caps["name"].to_owned(),
-            typ,
-        }).collect::<Vec<_>>()
+        regex
+            .captures_iter(&text)
+            .map(|caps| discord::FeAsset {
+                name: caps["name"].to_owned(),
+                typ,
+            })
+            .collect::<Vec<_>>()
     };
 
     let mut assets = collect_assets(&SCRIPT_TAG_RE, discord::FeAssetType::Js);
