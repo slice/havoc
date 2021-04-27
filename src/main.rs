@@ -1,7 +1,8 @@
 use havoc::discord;
 use havoc::scrape;
 
-fn main() {
-    let result = scrape::scrape_fe(discord::Branch::Canary);
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let result = scrape::scrape_fe(discord::Branch::Canary)?;
     dbg!(result);
+    Ok(())
 }

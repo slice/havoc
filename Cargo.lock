@@ -181,6 +181,7 @@ dependencies = [
 name = "havoc"
 version = "0.1.0"
 dependencies = [
+ "http",
  "isahc",
  "lazy_static",
  "regex",

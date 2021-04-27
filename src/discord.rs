@@ -54,12 +54,20 @@ impl FeAssetType {
 
 /// A frontend asset.
 ///
-/// This refers to a CSS, JS, ICO, or SVG file that has been deployed onto
-/// Discord's CDN.
+/// This refers to a file that has been deployed onto Discord's CDN.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FeAsset {
     pub name: String,
     pub typ: FeAssetType,
+}
+
+impl FeAsset {
+    /// Returns a `Url` to this asset.
+    pub fn url(&self) -> Url {
+        let base = Url::parse("https://discord.com/assets/").unwrap();
+        base.join(&format!("{}.{}", self.name, self.typ.ext()))
+            .expect("failed to construct asset url")
+    }
 }
 
 /// A frontend build.
