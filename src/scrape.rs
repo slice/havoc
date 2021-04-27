@@ -19,7 +19,8 @@ pub enum ScrapeError {
 
 /// Scrapes a frontend build.
 pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeError> {
-    let mut response = isahc::get("https://discord.com/channels/@me")?;
+    let url = branch.base().join("channels/@me").unwrap();
+    let mut response = isahc::get(url.as_str())?;
     let text = response.text().map_err(ScrapeError::DecodingError)?;
 
     lazy_static::lazy_static! {

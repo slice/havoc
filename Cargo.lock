@@ -185,6 +185,7 @@ dependencies = [
  "lazy_static",
  "regex",
  "thiserror",
+ "url",
 ]
 
 [[package]]

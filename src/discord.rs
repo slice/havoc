@@ -1,3 +1,5 @@
+use url::Url;
+
 /// A Discord branch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Branch {
@@ -5,6 +7,20 @@ pub enum Branch {
     Ptb,
     Canary,
     Development,
+}
+
+impl Branch {
+    /// Returns the base URL of this branch.
+    pub fn base(&self) -> Url {
+        use Branch::*;
+
+        match self {
+            Stable => "https://discord.com".parse().unwrap(),
+            Ptb => "https://ptb.discord.com".parse().unwrap(),
+            Canary => "https://canary.discord.com".parse().unwrap(),
+            Development => panic!("called `Branch::base()` on `Branch::Development`"),
+        }
+    }
 }
 
 /// A kind of frontend asset.
