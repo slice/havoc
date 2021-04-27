@@ -34,14 +34,13 @@ pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeErro
         }).collect::<Vec<_>>()
     };
 
-    let mut scripts = collect_assets(&SCRIPT_TAG_RE, discord::FeAssetType::Js);
-    let mut styles = collect_assets(&STYLE_TAG_RE, discord::FeAssetType::Css);
-    scripts.append(&mut styles);
+    let mut assets = collect_assets(&SCRIPT_TAG_RE, discord::FeAssetType::Js);
+    assets.append(&mut collect_assets(&STYLE_TAG_RE, discord::FeAssetType::Css));
 
     Ok(discord::FeBuild {
         branch,
         hash: "".to_owned(),
         number: 0,
-        assets: scripts,
+        assets,
     })
 }
