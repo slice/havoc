@@ -27,8 +27,8 @@ fn get_text(url: Url) -> Result<String, ScrapeError> {
 
 /// Scrapes a frontend build.
 pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeError> {
-    let text = fetch_branch_page(branch)?;
-    let assets = extract_assets_from_tags(&text);
+    let html = fetch_branch_page(branch)?;
+    let assets = extract_assets_from_tags(&html);
 
     if assets.is_empty() {
         return Err(ScrapeError::AssetError("no assets were found"));
@@ -47,12 +47,10 @@ pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeErro
         ));
     }
 
-    let scripts: Vec<_> = assets
+    let scripts = assets
         .iter()
-        .filter(|asset| asset.typ == discord::FeAssetType::Js)
-        .cloned() // TODO: don't do this
-        .collect();
-    let (hash, number) = discover_fe_build_info(&scripts)?;
+        .filter(|asset| asset.typ == discord::FeAssetType::Js);
+    let (hash, number) = discover_fe_build_info(scripts)?;
 
     Ok(discord::FeBuild {
         branch,
@@ -62,10 +60,14 @@ pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeErro
     })
 }
 
-/// Discover information about a frontend build from a vector of `Js` assets.
+/// Discover static build information from a sequence of `Js` assets.
 ///
-/// This will make requests as necessary.
-pub fn discover_fe_build_info(scripts: &[discord::FeAsset]) -> Result<(String, u32), ScrapeError> {
+/// This will make HTTP requests as necessary.
+pub fn discover_fe_build_info<'a>(
+    scripts: impl IntoIterator<Item = &'a discord::FeAsset>,
+) -> Result<(String, u32), ScrapeError> {
+    let scripts: Vec<_> = scripts.into_iter().collect();
+
     if scripts.is_empty() {
         panic!("can't discover build info from no scripts");
     }
