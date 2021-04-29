@@ -94,7 +94,9 @@ pub fn discover_fe_build_info<'a>(
 
     let caps = BUILD_INFO_RE
         .captures(&text)
-        .ok_or(ScrapeError::AssetError("couldn't find build information"))?;
+        .ok_or(ScrapeError::AssetError(
+            "failed to extract static build information from js bundle",
+        ))?;
 
     Ok((caps["hash"].to_owned(), caps["number"].parse().unwrap()))
 }
