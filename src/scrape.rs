@@ -34,8 +34,7 @@ pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeErro
         return Err(ScrapeError::AssetError("no assets were found"));
     }
 
-    let assets_of_type = |typ| assets.iter().filter(move |asset| asset.typ == typ);
-    let count_assets_of_type = |typ| assets_of_type(typ).count();
+    let count_assets_of_type = |typ| assets.iter().filter(|asset| asset.typ == typ).count();
 
     if count_assets_of_type(discord::FeAssetType::Js) < 1 {
         return Err(ScrapeError::AssetError(
@@ -48,8 +47,7 @@ pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeErro
         ));
     }
 
-    let scripts = assets_of_type(discord::FeAssetType::Js);
-    let (hash, number) = discover_fe_build_info(scripts)?;
+    let (hash, number) = discover_fe_build_info(&assets)?;
 
     Ok(discord::FeBuild {
         branch,
@@ -59,13 +57,14 @@ pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeErro
     })
 }
 
-/// Discover static build information from a sequence of `Js` assets.
+/// Discover static build information from a slice of [`discord::FeAsset`]s.
 ///
 /// This will make HTTP requests as necessary.
-pub fn discover_fe_build_info<'a>(
-    scripts: impl IntoIterator<Item = &'a discord::FeAsset>,
-) -> Result<(String, u32), ScrapeError> {
-    let scripts: Vec<_> = scripts.into_iter().collect();
+pub fn discover_fe_build_info<'a>(assets: &[discord::FeAsset]) -> Result<(String, u32), ScrapeError> {
+    let scripts: Vec<_> = assets
+        .iter()
+        .filter(|asset| asset.typ == discord::FeAssetType::Js)
+        .collect();
 
     if scripts.is_empty() {
         panic!("can't discover build info from no scripts");
@@ -84,15 +83,14 @@ pub fn discover_fe_build_info<'a>(
     // some heuristic, instead of just assuming that the last one has it.
 
     let main_bundle = scripts.last().unwrap();
-
-    let text = get_text(main_bundle.url())?;
+    let js = get_text(main_bundle.url())?;
 
     lazy_static::lazy_static! {
         static ref BUILD_INFO_RE: Regex = Regex::new(r#"Build Number: (?P<number>\d+), Version Hash: (?P<hash>[0-9a-f]+)"#).unwrap();
     }
 
     let caps = BUILD_INFO_RE
-        .captures(&text)
+        .captures(&js)
         .ok_or(ScrapeError::AssetError(
             "failed to extract static build information from js bundle",
         ))?;
