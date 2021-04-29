@@ -34,7 +34,8 @@ pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeErro
         return Err(ScrapeError::AssetError("no assets were found"));
     }
 
-    let count_assets_of_type = |typ| assets.iter().filter(|asset| asset.typ == typ).count();
+    let assets_of_type = |typ| assets.iter().filter(move |asset| asset.typ == typ);
+    let count_assets_of_type = |typ| assets_of_type(typ).count();
 
     if count_assets_of_type(discord::FeAssetType::Js) < 1 {
         return Err(ScrapeError::AssetError(
@@ -47,9 +48,7 @@ pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeErro
         ));
     }
 
-    let scripts = assets
-        .iter()
-        .filter(|asset| asset.typ == discord::FeAssetType::Js);
+    let scripts = assets_of_type(discord::FeAssetType::Js);
     let (hash, number) = discover_fe_build_info(scripts)?;
 
     Ok(discord::FeBuild {
