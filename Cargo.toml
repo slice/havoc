@@ -17,6 +17,8 @@ pretty_env_logger = "0.4"
 swc_ecma_parser = "0.54.4"
 swc_common = "0.10.17"
 swc_ecma_ast = "0.43.1"
+swc_ecma_visit = "0.29.1"
+swc_visit = "0.2.4"
 
 [dependencies.isahc]
 version = "1.3"
