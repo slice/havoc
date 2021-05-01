@@ -76,6 +76,8 @@ impl Visit for ClassModuleVisitor {
     }
 }
 
+/// Parses the CSS-in-JS Webpack chunk, which contains mappings from internal
+/// names to obfuscated CSS classes.
 pub fn parse_classes_file(js: &str) -> Result<ClassModuleMap, ParseError> {
     let cm: Lrc<SourceMap> = Default::default();
     let fm = cm.new_source_file(FileName::Custom("classes.js".into()), js.into());
