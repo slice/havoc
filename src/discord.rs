@@ -24,7 +24,7 @@ impl Branch {
 }
 
 /// A kind of frontend asset.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FeAssetType {
     Css,
     Js,
@@ -55,7 +55,7 @@ impl FeAssetType {
 /// A frontend asset.
 ///
 /// This refers to a file that has been deployed onto Discord's CDN.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FeAsset {
     pub name: String,
     pub typ: FeAssetType,

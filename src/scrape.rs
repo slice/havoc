@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::io;
+use std::time::Instant;
 
 use isahc::prelude::*;
 use regex::Regex;
@@ -20,6 +22,7 @@ pub enum ScrapeError {
 }
 
 fn get_text(url: Url) -> Result<String, ScrapeError> {
+    log::debug!("GET {}", url.as_str());
     // TODO: use custom headers here
     let mut response = isahc::get(url.as_str())?;
     Ok(response.text().map_err(ScrapeError::DecodingError)?)
@@ -47,27 +50,11 @@ pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeErro
         ));
     }
 
-    let (hash, number) = discover_fe_build_info(&assets)?;
-
-    Ok(discord::FeBuild {
-        branch,
-        hash,
-        number,
-        assets,
-    })
-}
-
-/// Discover static build information from a slice of [`discord::FeAsset`]s.
-///
-/// This will make HTTP requests as necessary.
-pub fn discover_fe_build_info<'a>(assets: &[discord::FeAsset]) -> Result<(String, u32), ScrapeError> {
-    let scripts: Vec<_> = assets
-        .iter()
-        .filter(|asset| asset.typ == discord::FeAssetType::Js)
-        .collect();
-
-    if scripts.is_empty() {
-        panic!("can't discover build info from no scripts");
+    let mut asset_responses: HashMap<&discord::FeAsset, String> = HashMap::new();
+    for asset in &assets {
+        let instant = Instant::now();
+        asset_responses.insert(asset, get_text(asset.url())?);
+        log::debug!("prefetching {} took {:?}", asset.url(), instant.elapsed());
     }
 
     // Right now, the scripts tags appear within in the page content in this
@@ -81,19 +68,38 @@ pub fn discover_fe_build_info<'a>(assets: &[discord::FeAsset]) -> Result<(String
     // We can't depend on this ordering forever, so in the future we should
     // attempt to fetch and scan other scripts for build information based on
     // some heuristic, instead of just assuming that the last one has it.
+    //
+    // Here we extract static build information from the main bundle, relying
+    // on the aforementioned assumptions.
 
-    let main_bundle = scripts.last().unwrap();
-    let js = get_text(main_bundle.url())?;
+    let last_script_asset = assets
+        .iter()
+        .filter(|asset| asset.typ == discord::FeAssetType::Js)
+        .last()
+        .unwrap();
 
+    let (hash, number) =
+        match_static_build_information(&asset_responses.get(&last_script_asset).unwrap())?;
+
+    crate::parse::parse_classes_file(asset_responses.get(&assets[1]).unwrap()).unwrap();
+
+    Ok(discord::FeBuild {
+        branch,
+        hash,
+        number,
+        assets,
+    })
+}
+
+/// Extracts static build information from the main bundle's JavaScript.
+pub fn match_static_build_information(js: &str) -> Result<(String, u32), ScrapeError> {
     lazy_static::lazy_static! {
         static ref BUILD_INFO_RE: Regex = Regex::new(r#"Build Number: (?P<number>\d+), Version Hash: (?P<hash>[0-9a-f]+)"#).unwrap();
     }
 
-    let caps = BUILD_INFO_RE
-        .captures(&js)
-        .ok_or(ScrapeError::AssetError(
-            "failed to extract static build information from js bundle",
-        ))?;
+    let caps = BUILD_INFO_RE.captures(&js).ok_or(ScrapeError::AssetError(
+        "failed to extract static build information from js bundle",
+    ))?;
 
     Ok((caps["hash"].to_owned(), caps["number"].parse().unwrap()))
 }
