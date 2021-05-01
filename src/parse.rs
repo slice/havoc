@@ -76,7 +76,7 @@ impl Visit for ClassModuleVisitor {
     }
 }
 
-pub fn parse_classes_file(js: &str) -> Result<(), ParseError> {
+pub fn parse_classes_file(js: &str) -> Result<ClassModuleMap, ParseError> {
     let cm: Lrc<SourceMap> = Default::default();
     let fm = cm.new_source_file(FileName::Custom("classes.js".into()), js.into());
 
@@ -111,5 +111,5 @@ pub fn parse_classes_file(js: &str) -> Result<(), ParseError> {
         total_mappings
     );
 
-    Ok(())
+    Ok(visitor.modules)
 }
