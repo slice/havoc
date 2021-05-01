@@ -81,7 +81,15 @@ pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeErro
     let (hash, number) =
         match_static_build_information(&asset_responses.get(&last_script_asset).unwrap())?;
 
-    crate::parse::parse_classes_file(asset_responses.get(&assets[1]).unwrap()).unwrap();
+    // TODO(slice): Remove me. Also, figure out how to split this behavior out
+    // without fetching again. We only have access to the prefetched content
+    // in this function...
+    let mapping = crate::parse::parse_classes_file(asset_responses.get(&assets[1]).unwrap())
+        .expect("couldn't parse class mappings");
+    let serialized = crate::util::measure("ser class mappings", || serde_json::to_string(&mapping))
+        .expect("couldn't serialize class mappings");
+    std::fs::write(&format!("{:?}_{}_class_mappings.json", branch, number), serialized)
+        .expect("couldn't write class mappings to disk");
 
     Ok(discord::FeBuild {
         branch,
