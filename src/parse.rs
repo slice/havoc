@@ -17,8 +17,13 @@ impl From<swc_ecma_parser::error::Error> for ParseError {
     }
 }
 
-struct ClassesClassMappingVisitor {
-    classes: HashMap<String, String>,
+pub type ClassMappingMap = HashMap<String, String>;
+
+// NOTE(slice): More like `ClassMappingModulesMap`, but that's too long.
+pub type ClassModuleMap = HashMap<u64 /* webpack module id */, ClassMappingMap>;
+
+struct ClassMappingVisitor {
+    classes: ClassMappingMap,
 }
 
 // NOTE(slice): It's worth noting that these visitors will stop visiting deeper
@@ -29,7 +34,7 @@ struct ClassesClassMappingVisitor {
 // key-values. The outer level is handled by `ClassesModuleVisitor` and the
 // inner by `ClassesClassMappingVisitor`.
 
-impl Visit for ClassesClassMappingVisitor {
+impl Visit for ClassMappingVisitor {
     fn visit_key_value_prop(&mut self, n: &ast::KeyValueProp, _parent: &dyn swc_ecma_visit::Node) {
         let key: &str = match &n.key {
             // { a: ... }
@@ -48,11 +53,11 @@ impl Visit for ClassesClassMappingVisitor {
     }
 }
 
-struct ClassesModuleVisitor {
-    modules: HashMap<u64, HashMap<String, String>>,
+struct ClassModuleVisitor {
+    modules: ClassModuleMap,
 }
 
-impl Visit for ClassesModuleVisitor {
+impl Visit for ClassModuleVisitor {
     fn visit_key_value_prop(&mut self, n: &ast::KeyValueProp, _parent: &dyn swc_ecma_visit::Node) {
         let module_id = match &n.key {
             // wow, i sure do hope webpack doesn't start using floating-point
@@ -61,7 +66,7 @@ impl Visit for ClassesModuleVisitor {
             _ => return,
         };
 
-        let mut class_mapping_visitor = ClassesClassMappingVisitor {
+        let mut class_mapping_visitor = ClassMappingVisitor {
             classes: HashMap::new(),
         };
         n.visit_children_with(&mut class_mapping_visitor);
@@ -87,10 +92,10 @@ pub fn parse_classes_file(js: &str) -> Result<(), ParseError> {
 
     let script = crate::util::measure("parsing classes script", || parser.parse_script())?;
 
-    let mut visitor = ClassesModuleVisitor {
+    let mut visitor = ClassModuleVisitor {
         modules: HashMap::new(),
     };
-    crate::util::measure("visiting class mappings", || {
+    crate::util::measure("visiting class modules and mapping", || {
         script.visit_children_with(&mut visitor)
     });
 
@@ -99,8 +104,9 @@ pub fn parse_classes_file(js: &str) -> Result<(), ParseError> {
         .iter()
         .map(|(_, mappings)| mappings.len())
         .sum();
+
     log::debug!(
-        "visited {} module(s), totalling to {} mappings",
+        "visited {} class module(s), totalling to {} class mappings",
         visitor.modules.len(),
         total_mappings
     );
