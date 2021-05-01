@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::time::Instant;
 
 use swc_common::{sync::Lrc, FileName, SourceMap};
 use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax};
@@ -86,18 +85,25 @@ pub fn parse_classes_file(js: &str) -> Result<(), ParseError> {
 
     let mut parser = Parser::new_from(lexer);
 
-    let instant = Instant::now();
-    let script = parser.parse_script()?;
-    log::debug!("took {:?} to parse classes script", instant.elapsed());
+    let script = crate::util::measure("parsing classes script", || parser.parse_script())?;
 
     let mut visitor = ClassesModuleVisitor {
         modules: HashMap::new(),
     };
-    script.visit_children_with(&mut visitor);
+    crate::util::measure("visiting class mappings", || {
+        script.visit_children_with(&mut visitor)
+    });
 
-    for (module_id, mappings) in &visitor.modules {
-        println!("module {} has {} mapping(s)", module_id, mappings.len());
-    }
+    let total_mappings: usize = visitor
+        .modules
+        .iter()
+        .map(|(_, mappings)| mappings.len())
+        .sum();
+    log::debug!(
+        "visited {} module(s), totalling to {} mappings",
+        visitor.modules.len(),
+        total_mappings
+    );
 
     Ok(())
 }
