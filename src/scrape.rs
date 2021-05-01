@@ -88,8 +88,11 @@ pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeErro
         .expect("couldn't parse class mappings");
     let serialized = crate::util::measure("ser class mappings", || serde_json::to_string(&mapping))
         .expect("couldn't serialize class mappings");
-    std::fs::write(&format!("{:?}_{}_class_mappings.json", branch, number), serialized)
-        .expect("couldn't write class mappings to disk");
+    std::fs::write(
+        &format!("{:?}_{}_class_mappings.json", branch, number),
+        serialized,
+    )
+    .expect("couldn't write class mappings to disk");
 
     Ok(discord::FeBuild {
         branch,
