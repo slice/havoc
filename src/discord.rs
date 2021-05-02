@@ -1,7 +1,10 @@
+use std::rc::{Weak, Rc};
+use std::hash::{Hash, Hasher};
+
 use url::Url;
 
 /// A Discord branch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Branch {
     Stable,
     Ptb,
@@ -62,12 +65,23 @@ pub struct FeAsset {
 }
 
 impl FeAsset {
-    /// Returns a `Url` to this asset.
+    /// Returns a [`Url`] to this asset.
     pub fn url(&self) -> Url {
         let base = Url::parse("https://discord.com/assets/").unwrap();
         base.join(&format!("{}.{}", self.name, self.typ.ext()))
             .expect("failed to construct asset url")
     }
+}
+
+/// A frontend manifest.
+///
+/// "Manifest" refers to a surface-level snapshot of a build which only
+/// contains minimal information. Further details can be gleaned from the data
+/// within this structure. For more information, see [`FeBuild`].
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FeManifest {
+    pub branch: Branch,
+    pub assets: Vec<Rc<FeAsset>>,
 }
 
 /// A frontend build.
@@ -78,10 +92,16 @@ impl FeAsset {
 /// functionality such as push to talk, keybinds, etc.
 #[derive(Debug, Clone)]
 pub struct FeBuild {
-    pub branch: Branch,
+    pub manifest: Weak<FeManifest>,
     pub hash: String,
     pub number: u32,
-    pub assets: Vec<FeAsset>,
+}
+
+impl Hash for FeBuild {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.hash.hash(state);
+        self.number.hash(state);
+    }
 }
 
 impl PartialEq for FeBuild {

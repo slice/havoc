@@ -1,6 +1,5 @@
-use std::collections::HashMap;
 use std::io;
-use std::time::Instant;
+use std::rc::Rc;
 
 use isahc::prelude::*;
 use regex::Regex;
@@ -21,15 +20,15 @@ pub enum ScrapeError {
     AssetError(&'static str),
 }
 
-fn get_text(url: Url) -> Result<String, ScrapeError> {
+pub(crate) fn get_text(url: Url) -> Result<String, ScrapeError> {
     log::debug!("GET {}", url.as_str());
     // TODO: use custom headers here
     let mut response = isahc::get(url.as_str())?;
     Ok(response.text().map_err(ScrapeError::DecodingError)?)
 }
 
-/// Scrapes a frontend build.
-pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeError> {
+/// Scrapes a `[discord::FeManifest]`.
+pub fn scrape_fe_manifest(branch: discord::Branch) -> Result<discord::FeManifest, ScrapeError> {
     let html = fetch_branch_page(branch)?;
     let assets = extract_assets_from_tags(&html);
 
@@ -39,24 +38,32 @@ pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeErro
 
     let count_assets_of_type = |typ| assets.iter().filter(|asset| asset.typ == typ).count();
 
+    // Enforce some useful variants.
+    if assets.is_empty() {
+        return Err(ScrapeError::AssetError("failed to scrape any assets"));
+    }
     if count_assets_of_type(discord::FeAssetType::Js) < 1 {
         return Err(ScrapeError::AssetError(
-            "failed to extract at least 1 js asset",
+            "failed to scrape at least 1 js asset",
         ));
     }
     if count_assets_of_type(discord::FeAssetType::Css) < 1 {
         return Err(ScrapeError::AssetError(
-            "failed to extract at least 1 css asset",
+            "failed to scrape at least 1 css asset",
         ));
     }
 
-    let mut asset_responses: HashMap<&discord::FeAsset, String> = HashMap::new();
-    for asset in &assets {
-        let instant = Instant::now();
-        asset_responses.insert(asset, get_text(asset.url())?);
-        log::debug!("prefetching {} took {:?}", asset.url(), instant.elapsed());
-    }
+    return Ok(discord::FeManifest {
+        branch,
+        assets: assets.into_iter().map(|asset| Rc::new(asset)).collect(),
+    });
+}
 
+/// Gleans a [`discord::FeBuild`] from a [`discord::FeManifest`].
+pub fn glean_frontend_build(
+    fe_manifest: Rc<discord::FeManifest>,
+    asset_content_map: &crate::wrecker::AssetContentMap,
+) -> Result<discord::FeBuild, ScrapeError> {
     // Right now, the scripts tags appear within in the page content in this
     // specific order:
     //
@@ -71,34 +78,33 @@ pub fn scrape_fe(branch: discord::Branch) -> Result<discord::FeBuild, ScrapeErro
     //
     // Here we extract static build information from the main bundle, relying
     // on the aforementioned assumptions.
-
-    let last_script_asset = assets
+    let last_script_asset = fe_manifest
+        .assets
         .iter()
         .filter(|asset| asset.typ == discord::FeAssetType::Js)
         .last()
         .unwrap();
 
     let (hash, number) =
-        match_static_build_information(&asset_responses.get(&last_script_asset).unwrap())?;
+        match_static_build_information(&asset_content_map.get(last_script_asset).unwrap())?;
 
     // TODO(slice): Remove me. Also, figure out how to split this behavior out
     // without fetching again. We only have access to the prefetched content
     // in this function...
-    let mapping = crate::parse::parse_classes_file(asset_responses.get(&assets[1]).unwrap())
-        .expect("couldn't parse class mappings");
-    let serialized = crate::util::measure("ser class mappings", || serde_json::to_string(&mapping))
-        .expect("couldn't serialize class mappings");
-    std::fs::write(
-        &format!("{:?}_{}_class_mappings.json", branch, number),
-        serialized,
-    )
-    .expect("couldn't write class mappings to disk");
+    // let mapping = crate::parse::parse_classes_file(asset_responses.get(&assets[1]).unwrap())
+    //     .expect("couldn't parse class mappings");
+    // let serialized = crate::util::measure("ser class mappings", || serde_json::to_string(&mapping))
+    //     .expect("couldn't serialize class mappings");
+    // std::fs::write(
+    //     &format!("{:?}_{}_class_mappings.json", branch, number),
+    //     serialized,
+    // )
+    // .expect("couldn't write class mappings to disk");
 
     Ok(discord::FeBuild {
-        branch,
+        manifest: Rc::downgrade(&fe_manifest),
         hash,
         number,
-        assets,
     })
 }
 

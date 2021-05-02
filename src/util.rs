@@ -1,4 +1,4 @@
-pub(crate) fn measure<F, T>(label: &'static str, func: F) -> T
+pub(crate) fn measure<F, T>(label: &str, func: F) -> T
 where
     F: FnOnce() -> T,
 {
