@@ -5,18 +5,6 @@ use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax};
 use swc_ecma_visit::{Visit, VisitWith};
 extern crate swc_ecma_ast as ast;
 
-#[derive(Debug)]
-pub enum ParseError {
-    SwcError(swc_ecma_parser::error::Error),
-    WalkError(&'static str),
-}
-
-impl From<swc_ecma_parser::error::Error> for ParseError {
-    fn from(error: swc_ecma_parser::error::Error) -> ParseError {
-        ParseError::SwcError(error)
-    }
-}
-
 pub type ClassMappingMap = HashMap<String, String>;
 
 // NOTE(slice): More like `ClassMappingModulesMap`, but that's too long.
@@ -78,7 +66,7 @@ impl Visit for ClassModuleVisitor {
 
 /// Parses the CSS-in-JS Webpack chunk, which contains mappings from internal
 /// names to obfuscated CSS classes.
-pub fn parse_classes_file(js: &str) -> Result<ClassModuleMap, ParseError> {
+pub fn parse_classes_file(js: &str) -> Result<ClassModuleMap, swc_ecma_parser::error::Error> {
     let cm: Lrc<SourceMap> = Default::default();
     let fm = cm.new_source_file(FileName::Custom("classes.js".into()), js.into());
 
