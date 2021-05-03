@@ -1,0 +1,58 @@
+name: release
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+env:
+  CARGO_TERM_COLOR: always
+  MUSL_TRIPLE: x86_64-unknown-linux-musl
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: gmiam/rust-musl-action@master
+        with:
+          args: cargo build --target ${{ env.MUSL_TRIPLE }} --release
+      - run: |
+          cd "$GITHUB_WORKSPACE/target/$MUSL_TRIPLE/release"
+          tar -z -c -f havoc-linux64.tar.gz havoc
+      - uses: actions/upload-artifact@v2
+        with:
+          name: havoc-linux64
+          path: target/$MUSL_TRIPLE/release/havoc-linux64.tar.gz
+          retention-days: 1
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+      - uses: actions/upload-artifact@v2
+        with:
+          name: havoc-win64
+          path: target/release/havoc.exe
+  release:
+    needs: [build-linux, build-win]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v2
+      - run: |
+          TAG_NAME=${{ github.ref }}
+          echo "TAG_NAME=${TAG_NAME#refs/tags/}" >> $GITHUB_ENV
+      - uses: meeDamian/github-release@2.0
+        token: ${{ secrets.GITHUB_TOKEN }}
+        name: havoc ${{ env.TAG_NAME }}
+        prerelease: ${{ startsWith(env.TAG_NAME, '0') }}
+        files: |
+          havoc-linux64.tar.gz:./havoc-linux64/havoc-linux64.tar.gz
+          havoc-win64.exe:./havoc-win64/havoc-win64.exe
