@@ -20,6 +20,7 @@ swc_ecma_ast = "0.43.1"
 swc_ecma_visit = "0.29.1"
 swc_visit = "0.2.4"
 serde_json = "1.0"
+clap = "2"
 
 [dependencies.serde]
 version = "1.0"

@@ -1,5 +1,5 @@
-use std::rc::{Weak, Rc};
 use std::hash::{Hash, Hasher};
+use std::rc::{Rc, Weak};
 
 use url::Url;
 
