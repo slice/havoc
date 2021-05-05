@@ -1,5 +1,7 @@
+use anyhow::{anyhow, Context, Result};
+
 use crate::discord::{FeAsset, FeBuild, FeManifest};
-use crate::scrape::{ScrapeError, Target};
+use crate::scrape::Target;
 use crate::util::measure;
 
 use std::collections::HashMap;
@@ -15,9 +17,10 @@ pub struct Wrecker {
 }
 
 impl Wrecker {
-    pub fn scrape(target: Target) -> Result<Self, ScrapeError> {
+    pub fn scrape(target: Target) -> Result<Self> {
         let Target::Frontend(branch) = target;
-        let manifest = crate::scrape::scrape_fe_manifest(branch)?;
+        let manifest = crate::scrape::scrape_fe_manifest(branch)
+            .context("failed to scrape frontend manifest")?;
 
         Ok(Self {
             manifest: Rc::new(manifest),
@@ -26,21 +29,51 @@ impl Wrecker {
         })
     }
 
-    pub fn glean_fe(&mut self) -> Result<(), ScrapeError> {
-        self.build = Some(crate::scrape::glean_frontend_build(
-            Rc::clone(&self.manifest),
-            &self.asset_content,
-        )?);
+    pub fn glean_fe(&mut self) -> Result<()> {
+        self.build = Some(
+            crate::scrape::glean_frontend_build(Rc::clone(&self.manifest), &self.asset_content)
+                .context("failed to glean frontend build")?,
+        );
+
         Ok(())
     }
 
-    pub fn fetch_assets(&mut self) -> Result<(), ScrapeError> {
+    pub fn fetch_assets(&mut self) -> Result<()> {
         for asset in &self.manifest.assets {
             let content = measure(&format!("fetching {}", asset.url()), || {
                 crate::scrape::get_text(asset.url())
-            })?;
+            })
+            .with_context(|| format!("failed to prefetch {}", asset.url()))?;
+
             self.asset_content.insert(Rc::clone(&asset), content);
         }
+
+        Ok(())
+    }
+
+    pub fn dump_classes(&self) -> Result<()> {
+        let asset = &self
+            .manifest
+            .assets
+            .get(1)
+            .ok_or(anyhow!("no classes asset"))?;
+        let js = self
+            .asset_content
+            .get(*asset)
+            .ok_or(anyhow!("couldn't find classes js"))?;
+        let mapping = crate::parse::parse_classes_file(js)
+            .map_err(|_| anyhow!("failed to parse classes js"))?;
+        let serialized =
+            serde_json::to_string(&mapping).context("failed to serialize classes mapping")?;
+
+        std::fs::write(
+            &format!(
+                "{:?}_{}_class_mappings.json",
+                self.manifest.branch,
+                self.build.as_ref().unwrap().number
+            ),
+            serialized,
+        )?;
 
         Ok(())
     }

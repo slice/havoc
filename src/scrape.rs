@@ -13,7 +13,7 @@ pub enum ScrapeError {
     #[error("http client error")]
     HttpError(#[from] isahc::error::Error),
 
-    #[error("failed to decode string")]
+    #[error("encountered malformed utf-8 string")]
     DecodingError(#[source] io::Error),
 
     #[error("asset error: {0}")]
@@ -115,7 +115,7 @@ pub fn match_static_build_information(js: &str) -> Result<(String, u32), ScrapeE
     }
 
     let caps = BUILD_INFO_RE.captures(&js).ok_or(ScrapeError::AssetError(
-        "failed to extract static build information from js bundle",
+        "failed to match static build information from main js bundle",
     ))?;
 
     Ok((caps["hash"].to_owned(), caps["number"].parse().unwrap()))
