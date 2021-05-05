@@ -19,6 +19,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .help("the target to scrape")
                         .takes_value(true)
                         .index(1),
+                )
+                .arg(
+                    Arg::with_name("dump")
+                        .long("dump")
+                        .short("d")
+                        .multiple(true)
+                        .help("build items to dump")
+                        .takes_value(true),
                 ),
         )
         .get_matches();
@@ -42,12 +50,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!(
             "Discord {:?} ({})",
             wrecker.manifest.branch,
-            wrecker.build.unwrap().number
+            wrecker.build.as_ref().unwrap().number
         );
 
         println!("\nAssets:");
         for asset in &wrecker.manifest.assets {
             println!("- {}.{}", asset.name, asset.typ.ext());
+        }
+
+        if let Some(dumping) = matches
+            .values_of("dump")
+            .map(|values| values.collect::<Vec<_>>())
+        {
+            for item in &dumping {
+                match *item {
+                    "classes" => wrecker.dump_classes()?,
+                    _ => {
+                        clap::Error::value_validation_auto(format!("Unknown dump item: {}", *item))
+                            .exit()
+                    }
+                }
+            }
         }
     }
 
