@@ -27,6 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let matches = clap::App::new("havoc")
+        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .version("0.1.0")
         .author("slice <tinyslices@gmail.com>")
         .about("discord client scraping and processing toolkit")
