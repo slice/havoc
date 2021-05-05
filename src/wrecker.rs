@@ -1,5 +1,5 @@
-use crate::discord::{Branch, FeAsset, FeBuild, FeManifest};
-use crate::scrape::ScrapeError;
+use crate::discord::{FeAsset, FeBuild, FeManifest};
+use crate::scrape::{ScrapeError, Target};
 use crate::util::measure;
 
 use std::collections::HashMap;
@@ -15,7 +15,8 @@ pub struct Wrecker {
 }
 
 impl Wrecker {
-    pub fn scrape_fe(branch: Branch) -> Result<Self, ScrapeError> {
+    pub fn scrape(target: Target) -> Result<Self, ScrapeError> {
+        let Target::Frontend(branch) = target;
         let manifest = crate::scrape::scrape_fe_manifest(branch)?;
 
         Ok(Self {

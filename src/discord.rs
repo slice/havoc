@@ -24,6 +24,26 @@ impl Branch {
             Development => panic!("called `Branch::base()` on `Branch::Development`"),
         }
     }
+
+    pub fn has_frontend(&self) -> bool {
+        *self != Branch::Development
+    }
+}
+
+impl std::str::FromStr for Branch {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use Branch::*;
+
+        match s {
+            "stable" => Ok(Stable),
+            "ptb" => Ok(Ptb),
+            "canary" => Ok(Canary),
+            "development" => Ok(Development),
+            _ => Err(()),
+        }
+    }
 }
 
 /// A kind of frontend asset.

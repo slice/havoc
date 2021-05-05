@@ -158,3 +158,34 @@ pub fn extract_assets_from_tags(page_content: &str) -> Vec<discord::FeAsset> {
 
     assets
 }
+
+/// A scrape target.
+pub enum Target {
+    Frontend(discord::Branch),
+}
+
+impl std::str::FromStr for Target {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let index = s.find(':').ok_or_else(|| "missing colon")?;
+        let (source, variant) = s.split_at(index);
+        let variant: String = variant.chars().skip(1).collect();
+
+        match source {
+            "fe" => Ok(Target::Frontend(
+                variant
+                    .parse::<discord::Branch>()
+                    .map_err(|_| "invalid branch")
+                    .and_then(|branch| {
+                        if !branch.has_frontend() {
+                            Err("branch has no frontend")
+                        } else {
+                            Ok(branch)
+                        }
+                    })?,
+            )),
+            _ => Err("unknown source"),
+        }
+    }
+}

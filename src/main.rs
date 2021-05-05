@@ -1,30 +1,9 @@
-use std::collections::HashMap;
-
 use clap::{Arg, SubCommand};
-use havoc::discord;
+use havoc::scrape;
 use havoc::wrecker::Wrecker;
-
-lazy_static::lazy_static! {
-    // TODO(slice): `Into<Target>` system.
-    static ref BRANCHES: HashMap<&'static str, discord::Branch> = {
-        let mut h = HashMap::new();
-        h.insert("canary", discord::Branch::Canary);
-        h.insert("ptb", discord::Branch::Ptb);
-        h.insert("stable", discord::Branch::Stable);
-        h
-    };
-}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
-
-    let validate_branch = |arg: String| {
-        let q: &str = &arg;
-        BRANCHES
-            .contains_key(q)
-            .then(|| ())
-            .ok_or("Invalid branch.".to_owned())
-    };
 
     let matches = clap::App::new("havoc")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
@@ -39,7 +18,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .required(true)
                         .help("the target to scrape")
                         .takes_value(true)
-                        .validator(validate_branch)
                         .index(1),
                 ),
         )
@@ -47,10 +25,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(matches) = matches.subcommand_matches("scrape") {
         let target_str = matches.value_of("TARGET").unwrap();
-        let target_branch = BRANCHES.get(target_str).unwrap();
 
-        // NOTE(slice): Perform crude matching for now.
-        let mut wrecker = Wrecker::scrape_fe(*target_branch)?;
+        let target = match target_str.parse::<scrape::Target>() {
+            Ok(target) => target,
+            Err(err) => {
+                let clap_err =
+                    clap::Error::value_validation_auto(format!("Invalid scrape target: {}", err));
+                clap_err.exit();
+            }
+        };
+
+        let mut wrecker = Wrecker::scrape(target)?;
         wrecker.fetch_assets()?;
         wrecker.glean_fe()?;
 
