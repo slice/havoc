@@ -102,7 +102,7 @@ pub fn glean_frontend_build(
     // .expect("couldn't write class mappings to disk");
 
     Ok(discord::FeBuild {
-        manifest: Rc::downgrade(&fe_manifest),
+        manifest: Rc::clone(&fe_manifest),
         hash,
         number,
     })

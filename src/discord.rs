@@ -1,5 +1,5 @@
 use std::hash::{Hash, Hasher};
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 use url::Url;
 
@@ -112,7 +112,7 @@ pub struct FeManifest {
 /// functionality such as push to talk, keybinds, etc.
 #[derive(Debug, Clone)]
 pub struct FeBuild {
-    pub manifest: Weak<FeManifest>,
+    pub manifest: Rc<FeManifest>,
     pub hash: String,
     pub number: u32,
 }

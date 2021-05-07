@@ -9,37 +9,37 @@ use std::rc::Rc;
 
 pub type AssetContentMap = HashMap<Rc<FeAsset>, String>;
 
-pub struct Wrecker {
-    pub manifest: Rc<FeManifest>,
-    // NOTE(slice): doesn't seem ideal
-    pub build: Option<FeBuild>,
+pub struct Wrecker<I> {
+    pub item: I,
     asset_content: AssetContentMap,
 }
 
-impl Wrecker {
-    pub fn scrape(target: Target) -> Result<Self> {
+impl<I> Wrecker<I> {
+    pub fn scrape(target: Target) -> Result<Wrecker<Rc<FeManifest>>> {
         let Target::Frontend(branch) = target;
         let manifest = crate::scrape::scrape_fe_manifest(branch)
             .context("failed to scrape frontend manifest")?;
 
-        Ok(Self {
-            manifest: Rc::new(manifest),
-            build: None,
+        Ok(Wrecker {
+            item: Rc::new(manifest),
             asset_content: HashMap::new(),
         })
     }
+}
 
-    pub fn glean_fe(&mut self) -> Result<()> {
-        self.build = Some(
-            crate::scrape::glean_frontend_build(Rc::clone(&self.manifest), &self.asset_content)
-                .context("failed to glean frontend build")?,
-        );
+impl Wrecker<Rc<FeManifest>> {
+    pub fn glean_fe(self) -> Result<Wrecker<FeBuild>> {
+        let build = crate::scrape::glean_frontend_build(Rc::clone(&self.item), &self.asset_content)
+            .context("failed to glean frontend build")?;
 
-        Ok(())
+        Ok(Wrecker {
+            item: build,
+            asset_content: self.asset_content,
+        })
     }
 
     pub fn fetch_assets(&mut self) -> Result<()> {
-        for asset in &self.manifest.assets {
+        for asset in &self.item.assets {
             let content = measure(&format!("fetching {}", asset.url()), || {
                 crate::scrape::get_text(asset.url())
             })
@@ -50,9 +50,12 @@ impl Wrecker {
 
         Ok(())
     }
+}
 
+impl Wrecker<FeBuild> {
     pub fn dump_classes(&self) -> Result<()> {
         let asset = &self
+            .item
             .manifest
             .assets
             .get(1)
@@ -69,8 +72,8 @@ impl Wrecker {
         std::fs::write(
             &format!(
                 "{:?}_{}_class_mappings.json",
-                self.manifest.branch,
-                self.build.as_ref().unwrap().number
+                self.item.manifest.branch,
+                self.item.number
             ),
             serialized,
         )?;

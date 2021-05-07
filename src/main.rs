@@ -43,18 +43,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        let mut wrecker = Wrecker::scrape(target)?;
+        let mut wrecker = Wrecker::<()>::scrape(target)?;
         wrecker.fetch_assets()?;
-        wrecker.glean_fe()?;
+        let wrecker = wrecker.glean_fe()?;
 
         println!(
             "Discord {:?} ({})",
-            wrecker.manifest.branch,
-            wrecker.build.as_ref().unwrap().number
+            wrecker.item.manifest.branch,
+            wrecker.item.number
         );
 
         println!("\nAssets:");
-        for asset in &wrecker.manifest.assets {
+        for asset in &wrecker.item.manifest.assets {
             println!("- {}.{}", asset.name, asset.typ.ext());
         }
 
