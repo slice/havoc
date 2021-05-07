@@ -15,21 +15,21 @@ pub struct Wrecker<I> {
 }
 
 impl<I> Wrecker<I> {
-    pub fn scrape(target: Target) -> Result<Wrecker<Rc<FeManifest>>> {
+    pub fn scrape(target: Target) -> Result<Wrecker<FeManifest>> {
         let Target::Frontend(branch) = target;
         let manifest = crate::scrape::scrape_fe_manifest(branch)
             .context("failed to scrape frontend manifest")?;
 
         Ok(Wrecker {
-            item: Rc::new(manifest),
+            item: manifest,
             asset_content: HashMap::new(),
         })
     }
 }
 
-impl Wrecker<Rc<FeManifest>> {
+impl Wrecker<FeManifest> {
     pub fn glean_fe(self) -> Result<Wrecker<FeBuild>> {
-        let build = crate::scrape::glean_frontend_build(Rc::clone(&self.item), &self.asset_content)
+        let build = crate::scrape::glean_frontend_build(self.item, &self.asset_content)
             .context("failed to glean frontend build")?;
 
         Ok(Wrecker {

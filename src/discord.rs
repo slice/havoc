@@ -112,7 +112,7 @@ pub struct FeManifest {
 /// functionality such as push to talk, keybinds, etc.
 #[derive(Debug, Clone)]
 pub struct FeBuild {
-    pub manifest: Rc<FeManifest>,
+    pub manifest: FeManifest,
     pub hash: String,
     pub number: u32,
 }

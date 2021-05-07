@@ -61,7 +61,7 @@ pub fn scrape_fe_manifest(branch: discord::Branch) -> Result<discord::FeManifest
 
 /// Gleans a [`discord::FeBuild`] from a [`discord::FeManifest`].
 pub fn glean_frontend_build(
-    fe_manifest: Rc<discord::FeManifest>,
+    fe_manifest: discord::FeManifest,
     asset_content_map: &crate::wrecker::AssetContentMap,
 ) -> Result<discord::FeBuild, ScrapeError> {
     // Right now, the scripts tags appear within in the page content in this
@@ -102,7 +102,7 @@ pub fn glean_frontend_build(
     // .expect("couldn't write class mappings to disk");
 
     Ok(discord::FeBuild {
-        manifest: Rc::clone(&fe_manifest),
+        manifest: fe_manifest,
         hash,
         number,
     })
