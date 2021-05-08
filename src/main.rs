@@ -49,8 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!(
             "Discord {:?} ({})",
-            wrecker.item.manifest.branch,
-            wrecker.item.number
+            wrecker.item.manifest.branch, wrecker.item.number
         );
 
         println!("\nAssets:");
@@ -65,6 +64,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             for item in &dumping {
                 match *item {
                     "classes" => wrecker.dump_classes()?,
+                    "chunks" => wrecker.parse_chunks()?,
                     _ => {
                         clap::Error::value_validation_auto(format!("Unknown dump item: {}", *item))
                             .exit()

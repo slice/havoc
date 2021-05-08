@@ -72,11 +72,29 @@ impl Wrecker<FeBuild> {
         std::fs::write(
             &format!(
                 "{:?}_{}_class_mappings.json",
-                self.item.manifest.branch,
-                self.item.number
+                self.item.manifest.branch, self.item.number
             ),
             serialized,
         )?;
+
+        Ok(())
+    }
+
+    pub fn parse_chunks(&self) -> Result<()> {
+        let assets = &self.item.manifest.assets;
+
+        let last_script = assets
+            .iter()
+            .filter(|asset| asset.typ == crate::discord::FeAssetType::Js)
+            .last()
+            .ok_or(anyhow!("couldn't find entrypoint js"))?;
+
+        let entrypoint_js = self
+            .asset_content
+            .get(last_script)
+            .ok_or(anyhow!("no entrypoint js content"))?;
+
+        crate::parse::parse_webpack_chunk(&entrypoint_js)?;
 
         Ok(())
     }
