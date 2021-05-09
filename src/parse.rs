@@ -65,7 +65,8 @@ impl Visit for ClassModuleVisitor {
     }
 }
 
-fn parse_script(js: &str) -> Result<ast::Script, SwcError> {
+/// Parses a script.
+pub fn parse_script(js: &str) -> Result<ast::Script, ParseError> {
     let cm: Lrc<SourceMap> = Default::default();
     let fm = cm.new_source_file(FileName::Custom("script.js".into()), js.into());
 
@@ -78,14 +79,11 @@ fn parse_script(js: &str) -> Result<ast::Script, SwcError> {
     );
 
     let mut parser = Parser::new_from(lexer);
-    parser.parse_script()
+    Ok(parser.parse_script()?)
 }
 
-/// Parses the CSS-in-JS Webpack chunk, which contains mappings from internal
-/// names to obfuscated CSS classes.
-pub fn parse_classes_file(js: &str) -> Result<ClassModuleMap, SwcError> {
-    let script = crate::util::measure("parsing classes script", || parse_script(js))?;
-
+/// Walk a Webpack chunk script containing classname mappings.
+pub fn walk_classes_chunk(script: &ast::Script) -> Result<ClassModuleMap, ParseError> {
     let mut visitor = ClassModuleVisitor {
         modules: HashMap::new(),
     };
@@ -109,7 +107,7 @@ pub fn parse_classes_file(js: &str) -> Result<ClassModuleMap, SwcError> {
 }
 
 #[derive(Error, Debug)]
-pub enum ParseChunkError {
+pub enum ParseError {
     #[error("missing ast node: {0}")]
     MissingNode(&'static str),
 
@@ -117,9 +115,9 @@ pub enum ParseChunkError {
     Swc(SwcError),
 }
 
-impl From<SwcError> for ParseChunkError {
-    fn from(swc_error: SwcError) -> Self {
-        ParseChunkError::Swc(swc_error)
+impl From<SwcError> for ParseError {
+    fn from(err: SwcError) -> Self {
+        ParseError::Swc(err)
     }
 }
 
@@ -133,8 +131,10 @@ pub struct WebpackChunk {
     pub entrypoints: Vec<ChunkId>,
 }
 
-/// Parses a generic Webpack chunk.
-pub fn parse_webpack_chunk(js: &str) -> Result<(), ParseChunkError> {
+/// Walks a generic Webpack chunk that contains modules.
+pub fn walk_webpack_chunk(script: &ast::Script) -> Result<WebpackChunk, ParseError> {
+    use ParseError::MissingNode;
+
     // NOTE: This is the format for `webpackJsonp`/`webpackChunk`:
     //
     // webpackJsonp.push([
@@ -150,13 +150,7 @@ pub fn parse_webpack_chunk(js: &str) -> Result<(), ParseChunkError> {
     //
     // ]);
 
-    let script = crate::util::measure("parsing webpack chunk", || parse_script(js))?;
-
-    use ParseChunkError::MissingNode;
-
     let body = script.body.get(0).ok_or(MissingNode("script body"))?;
-
-    use if_chain::if_chain;
 
     let mut webpack_chunk = WebpackChunk {
         chunks: vec![],
@@ -165,7 +159,7 @@ pub fn parse_webpack_chunk(js: &str) -> Result<(), ParseChunkError> {
         entrypoints: vec![],
     };
 
-    if_chain! {
+    if_chain::if_chain! {
         if let ast::Stmt::Expr(ast::ExprStmt { expr: boxed_expr, .. }) = body;
         if let ast::Expr::Call(ast::CallExpr { args: call_args, .. }) = &**boxed_expr;
         if let [ast::ExprOrSpread { expr: boxed_array_expr, .. }, ..] = call_args.as_slice();
@@ -203,7 +197,7 @@ pub fn parse_webpack_chunk(js: &str) -> Result<(), ParseChunkError> {
         }
     }
 
-    Ok(())
+    Ok(webpack_chunk)
 }
 
 /// Walks a module listing. It can either be an array (with indexes as the

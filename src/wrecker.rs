@@ -64,8 +64,9 @@ impl Wrecker<FeBuild> {
             .asset_content
             .get(*asset)
             .ok_or(anyhow!("couldn't find classes js"))?;
-        let mapping = crate::parse::parse_classes_file(js)
-            .map_err(|_| anyhow!("failed to parse classes js"))?;
+        let script = crate::parse::parse_script(&js).context("failed to parse classes js")?;
+        let mapping = crate::parse::walk_classes_chunk(&script)
+            .map_err(|_| anyhow!("failed to walk classes js"))?;
         let serialized =
             serde_json::to_string(&mapping).context("failed to serialize classes mapping")?;
 
@@ -80,7 +81,7 @@ impl Wrecker<FeBuild> {
         Ok(())
     }
 
-    pub fn parse_chunks(&self) -> Result<()> {
+    pub fn parse_chunks(&self) -> Result<(swc_ecma_ast::Script, crate::parse::WebpackChunk)> {
         let assets = &self.item.manifest.assets;
 
         let last_script = assets
@@ -94,8 +95,13 @@ impl Wrecker<FeBuild> {
             .get(last_script)
             .ok_or(anyhow!("no entrypoint js content"))?;
 
-        crate::parse::parse_webpack_chunk(&entrypoint_js)?;
+        let script = measure("parsing entrypoint script", || {
+            crate::parse::parse_script(&entrypoint_js)
+        })
+        .context("failed to parse entrypoint js")?;
+        let chunk =
+            crate::parse::walk_webpack_chunk(&script).context("failed to walk entrypoint js")?;
 
-        Ok(())
+        Ok((script, chunk))
     }
 }
