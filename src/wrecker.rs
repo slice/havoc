@@ -72,7 +72,7 @@ impl Wrecker<FeBuild> {
 
         std::fs::write(
             &format!(
-                "{:?}_{}_class_mappings.json",
+                "havoc_{:?}_{}_class_mappings.json",
                 self.item.manifest.branch, self.item.number
             ),
             serialized,
