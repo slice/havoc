@@ -78,6 +78,7 @@ pub fn glean_frontend_build(
     //
     // Here we extract static build information from the main bundle, relying
     // on the aforementioned assumptions.
+
     let last_script_asset = fe_manifest
         .assets
         .iter()
@@ -87,19 +88,6 @@ pub fn glean_frontend_build(
 
     let (hash, number) =
         match_static_build_information(&asset_content_map.get(last_script_asset).unwrap())?;
-
-    // TODO(slice): Remove me. Also, figure out how to split this behavior out
-    // without fetching again. We only have access to the prefetched content
-    // in this function...
-    // let mapping = crate::parse::parse_classes_file(asset_responses.get(&assets[1]).unwrap())
-    //     .expect("couldn't parse class mappings");
-    // let serialized = crate::util::measure("ser class mappings", || serde_json::to_string(&mapping))
-    //     .expect("couldn't serialize class mappings");
-    // std::fs::write(
-    //     &format!("{:?}_{}_class_mappings.json", branch, number),
-    //     serialized,
-    // )
-    // .expect("couldn't write class mappings to disk");
 
     Ok(discord::FeBuild {
         manifest: fe_manifest,
