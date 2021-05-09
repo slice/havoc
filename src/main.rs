@@ -1,3 +1,4 @@
+use anyhow::Context;
 use clap::{Arg, SubCommand};
 use havoc::scrape;
 use havoc::wrecker::Wrecker;
@@ -63,7 +64,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         {
             for item in &dumping {
                 match *item {
-                    "classes" => wrecker.dump_classes()?,
+                    "classes" => {
+                        let class_module_map = wrecker.parse_classes()?;
+                        let json = serde_json::to_string(&class_module_map)
+                            .context("failed to serialize class module map")?;
+
+                        let filename = format!(
+                            "havoc_{:?}_{}_class_mappings.json",
+                            wrecker.item.manifest.branch, wrecker.item.number
+                        );
+
+                        std::fs::write(&filename, json)
+                            .context("failed to write serialized class module map to disk")?;
+                    }
                     "chunks" => {
                         let (script, chunk) = wrecker.parse_chunks()?;
                         let json = serde_json::to_string(&script)?;
@@ -71,7 +84,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             "havoc_{:?}_{}_entrypoint_ast.json",
                             wrecker.item.manifest.branch, wrecker.item.number
                         );
-                        std::fs::write(&filename, &json)?;
+                        std::fs::write(&filename, &json)
+                            .context("failed to write serialized entrypoint ast to disk")?;
                     }
                     _ => {
                         clap::Error::value_validation_auto(format!("Unknown dump item: {}", *item))

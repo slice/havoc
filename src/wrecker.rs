@@ -53,7 +53,7 @@ impl Wrecker<FeManifest> {
 }
 
 impl Wrecker<FeBuild> {
-    pub fn dump_classes(&self) -> Result<()> {
+    pub fn parse_classes(&self) -> Result<crate::parse::ClassModuleMap> {
         let asset = &self
             .item
             .manifest
@@ -67,18 +67,8 @@ impl Wrecker<FeBuild> {
         let script = crate::parse::parse_script(&js).context("failed to parse classes js")?;
         let mapping = crate::parse::walk_classes_chunk(&script)
             .map_err(|_| anyhow!("failed to walk classes js"))?;
-        let serialized =
-            serde_json::to_string(&mapping).context("failed to serialize classes mapping")?;
 
-        std::fs::write(
-            &format!(
-                "havoc_{:?}_{}_class_mappings.json",
-                self.item.manifest.branch, self.item.number
-            ),
-            serialized,
-        )?;
-
-        Ok(())
+        Ok(mapping)
     }
 
     pub fn parse_chunks(&self) -> Result<(swc_ecma_ast::Script, crate::parse::WebpackChunk)> {
