@@ -24,7 +24,7 @@ pub(crate) fn get_text(url: Url) -> Result<String, ScrapeError> {
     log::debug!("GET {}", url.as_str());
     // TODO: use custom headers here
     let mut response = isahc::get(url.as_str())?;
-    Ok(response.text().map_err(ScrapeError::DecodingError)?)
+    response.text().map_err(ScrapeError::DecodingError)
 }
 
 /// Scrapes a `[discord::FeManifest]`.
@@ -53,10 +53,10 @@ pub fn scrape_fe_manifest(branch: discord::Branch) -> Result<discord::FeManifest
         ));
     }
 
-    return Ok(discord::FeManifest {
+    Ok(discord::FeManifest {
         branch,
-        assets: assets.into_iter().map(|asset| Rc::new(asset)).collect(),
-    });
+        assets: assets.into_iter().map(Rc::new).collect(),
+    })
 }
 
 /// Gleans a [`discord::FeBuild`] from a [`discord::FeManifest`].
@@ -114,7 +114,7 @@ pub fn match_static_build_information(js: &str) -> Result<(String, u32), ScrapeE
 /// This uses the default Isahc client.
 pub fn fetch_branch_page(branch: discord::Branch) -> Result<String, ScrapeError> {
     let url = branch.base().join("channels/@me").unwrap();
-    Ok(get_text(url)?)
+    get_text(url)
 }
 
 /// Extracts [`discord::FeAsset`]s from `<script>` and `<link>` tags on an HTML
@@ -156,7 +156,7 @@ impl std::str::FromStr for Target {
     type Err = &'static str;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let index = s.find(':').ok_or_else(|| "missing colon")?;
+        let index = s.find(':').ok_or("missing colon")?;
         let (source, variant) = s.split_at(index);
         let variant: String = variant.chars().skip(1).collect();
 

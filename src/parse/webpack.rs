@@ -49,7 +49,7 @@ pub fn walk_webpack_chunk(script: &ast::Script) -> Result<WebpackChunk, ParseErr
         if let ast::Expr::Array(array_lit) = &**boxed_array_expr;
         if let [chunk_ids_eos, modules_eos, ..] = array_lit.elems.as_slice();
         if let (
-            Some(ast::ExprOrSpread { expr: boxed_chunk_ids_expr, .. }),
+            Some(ast::ExprOrSpread { expr: _boxed_chunk_ids_expr, .. }),
             Some(ast::ExprOrSpread { expr: boxed_modules_expr, .. })
         ) = (chunk_ids_eos, modules_eos);
         let modules_expr = &*boxed_modules_expr;
@@ -57,7 +57,7 @@ pub fn walk_webpack_chunk(script: &ast::Script) -> Result<WebpackChunk, ParseErr
         then {
             // let mut last_module_id: ModuleId = 0;
 
-            walk_module_listing(modules_expr, |module_id, func| {
+            walk_module_listing(modules_expr, |module_id, _func| {
                 // if module_id - last_module_id > 1 {
                 //     log::debug!("detected gap in module ids: from {} to {}", last_module_id, module_id);
                 // }
@@ -105,7 +105,7 @@ fn walk_module_listing(modules: &ast::Expr, mut callback: impl FnMut(ModuleId, &
                 }
             }
         }
-        ast::Expr::Object(ast::ObjectLit { props, .. }) => {
+        ast::Expr::Object(ast::ObjectLit { props: _props, .. }) => {
             todo!("walking object module listing");
         }
         _ => {}

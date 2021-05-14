@@ -78,7 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             .context("failed to write serialized class module map to disk")?;
                     }
                     "chunks" => {
-                        let (script, chunk) = wrecker.parse_chunks()?;
+                        let (script, _chunk) = wrecker.parse_chunks()?;
                         let json = serde_json::to_string(&script)?;
                         let filename = format!(
                             "havoc_{:?}_{}_entrypoint_ast.json",

@@ -59,11 +59,11 @@ impl Wrecker<FeBuild> {
             .manifest
             .assets
             .get(1)
-            .ok_or(anyhow!("no classes asset"))?;
+            .ok_or_else(|| anyhow!("no classes asset"))?;
         let js = self
             .asset_content
             .get(*asset)
-            .ok_or(anyhow!("couldn't find classes js"))?;
+            .ok_or_else(|| anyhow!("couldn't find classes js"))?;
         let script = crate::parse::parse_script(&js).context("failed to parse classes js")?;
         let mapping = crate::parse::walk_classes_chunk(&script)
             .map_err(|_| anyhow!("failed to walk classes js"))?;
@@ -78,12 +78,12 @@ impl Wrecker<FeBuild> {
             .iter()
             .filter(|asset| asset.typ == crate::discord::FeAssetType::Js)
             .last()
-            .ok_or(anyhow!("couldn't find entrypoint js"))?;
+            .ok_or_else(|| anyhow!("couldn't find entrypoint js"))?;
 
         let entrypoint_js = self
             .asset_content
             .get(last_script)
-            .ok_or(anyhow!("no entrypoint js content"))?;
+            .ok_or_else(|| anyhow!("no entrypoint js content"))?;
 
         let script = measure("parsing entrypoint script", || {
             crate::parse::parse_script(&entrypoint_js)
