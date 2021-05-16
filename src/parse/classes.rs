@@ -3,12 +3,13 @@ use std::collections::HashMap;
 extern crate swc_ecma_ast as ast;
 use swc_ecma_visit::{Visit, VisitWith};
 
+use super::webpack::ModuleId;
 use super::ParseError;
 
 pub type ClassMappingMap = HashMap<String, String>;
 
 // NOTE(slice): More like `ClassMappingModulesMap`, but that's too long.
-pub type ClassModuleMap = HashMap<u64 /* webpack module id */, ClassMappingMap>;
+pub type ClassModuleMap = HashMap<ModuleId, ClassMappingMap>;
 
 struct ClassMappingVisitor {
     classes: ClassMappingMap,
@@ -50,7 +51,7 @@ impl Visit for ClassModuleVisitor {
         let module_id = match &n.key {
             // wow, i sure do hope webpack doesn't start using floating-point
             // numbers for module ids
-            ast::PropName::Num(ast::Number { value, .. }) => *value as u64,
+            ast::PropName::Num(ast::Number { value, .. }) => *value as ModuleId,
             _ => return,
         };
 
