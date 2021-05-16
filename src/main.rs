@@ -1,10 +1,14 @@
 use anyhow::Context;
 use clap::{Arg, SubCommand};
+
+use havoc::artifact::DumpItem;
 use havoc::scrape;
 use havoc::wrecker::Wrecker;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
+
+    let cwd = std::env::current_dir().expect("couldn't access current directory");
 
     let matches = clap::App::new("havoc")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
@@ -44,17 +48,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        let mut wrecker = Wrecker::<()>::scrape(target)?;
-        wrecker.fetch_assets()?;
-        let wrecker = wrecker.glean_fe()?;
+        let wrecker = Wrecker::scrape_fe_build(target)?;
 
-        println!(
-            "Discord {:?} ({})",
-            wrecker.item.manifest.branch, wrecker.item.number
-        );
+        println!("{}", wrecker.artifact);
 
         println!("\nAssets:");
-        for asset in &wrecker.item.manifest.assets {
+        for asset in wrecker.artifact.assets() {
             println!("- {}.{}", asset.name, asset.typ.ext());
         }
 
@@ -63,34 +62,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map(|values| values.collect::<Vec<_>>())
         {
             for item in &dumping {
-                match *item {
-                    "classes" => {
-                        let class_module_map = wrecker.parse_classes()?;
-                        let json = serde_json::to_string(&class_module_map)
-                            .context("failed to serialize class module map")?;
+                let dump_item: DumpItem = item
+                    .parse()
+                    .map_err(|_| format!("`{}` is not a valid dump item", item))
+                    .expect("invalid dump item");
 
-                        let filename = format!(
-                            "havoc_{:?}_{}_class_mappings.json",
-                            wrecker.item.manifest.branch, wrecker.item.number
-                        );
+                if !wrecker.artifact.supports_dump_item(dump_item) {
+                    panic!("unsupported dump item for this artifact");
+                }
 
-                        std::fs::write(&filename, json)
-                            .context("failed to write serialized class module map to disk")?;
-                    }
-                    "chunks" => {
-                        let (script, _chunk) = wrecker.parse_chunks()?;
-                        let json = serde_json::to_string(&script)?;
-                        let filename = format!(
-                            "havoc_{:?}_{}_entrypoint_ast.json",
-                            wrecker.item.manifest.branch, wrecker.item.number
-                        );
-                        std::fs::write(&filename, &json)
-                            .context("failed to write serialized entrypoint ast to disk")?;
-                    }
-                    _ => {
-                        clap::Error::value_validation_auto(format!("Unknown dump item: {}", *item))
-                            .exit()
-                    }
+                print!("dumping item \"{}\" ...", item);
+
+                let dump_results = wrecker
+                    .dump(dump_item)
+                    .with_context(|| format!("failed to dump {:?} ({})", dump_item, item))?;
+
+                println!(" {} result(s)", dump_results.len());
+
+                for result in &dump_results {
+                    let filename = result.filename();
+
+                    let full_filename =
+                        format!("havoc_{}_{}", wrecker.artifact.dump_prefix(), filename);
+                    let dest = cwd.join(full_filename.clone());
+
+                    println!(
+                        "\twriting \"{}\" ({:?}, {}) to {}",
+                        result.name,
+                        result.typ,
+                        result.content.len(),
+                        full_filename
+                    );
+
+                    result.dump_to(&dest).unwrap_or_else(|err| {
+                        panic!(
+                            "failed to dump {:?} ({}) to disk: {:?}",
+                            dump_item, item, err
+                        )
+                    });
                 }
             }
         }
