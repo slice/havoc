@@ -1,14 +1,12 @@
-use anyhow::Context;
+use anyhow::{anyhow, Context, Result};
 use clap::{Arg, SubCommand};
 
 use havoc::artifact::DumpItem;
 use havoc::scrape;
 use havoc::wrecker::Wrecker;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<()> {
     pretty_env_logger::init();
-
-    let cwd = std::env::current_dir().expect("couldn't access current directory");
 
     let matches = clap::App::new("havoc")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
@@ -50,58 +48,67 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let wrecker = Wrecker::scrape_fe_build(target)?;
 
-        println!("{}", wrecker.artifact);
+        println!("scraped: {}", wrecker.artifact);
 
-        println!("\nAssets:");
+        let assets = wrecker.artifact.assets();
+
+        println!("assets ({}):", assets.len());
+
         for asset in wrecker.artifact.assets() {
-            println!("- {}.{}", asset.name, asset.typ.ext());
+            println!("\t{}.{} ({:?})", asset.name, asset.typ.ext(), asset.typ);
         }
 
         if let Some(dumping) = matches
             .values_of("dump")
             .map(|values| values.collect::<Vec<_>>())
         {
-            for item in &dumping {
-                let dump_item: DumpItem = item
-                    .parse()
-                    .map_err(|_| format!("`{}` is not a valid dump item", item))
-                    .expect("invalid dump item");
+            dump_items(&dumping, &wrecker)?;
+        }
+    }
 
-                if !wrecker.artifact.supports_dump_item(dump_item) {
-                    panic!("unsupported dump item for this artifact");
-                }
+    Ok(())
+}
 
-                print!("dumping item \"{}\" ...", item);
+fn dump_items(dumping: &[&str], wrecker: &Wrecker) -> Result<()> {
+    let cwd = std::env::current_dir().context("failed to obtain current working dir")?;
 
-                let dump_results = wrecker
-                    .dump(dump_item)
-                    .with_context(|| format!("failed to dump {:?} ({})", dump_item, item))?;
+    for item in dumping {
+        let dump_item: DumpItem = item
+            .parse()
+            .map_err(|_| anyhow!("`{}` is not a valid dump item", item))
+            .context("invalid dump item")?;
 
-                println!(" {} result(s)", dump_results.len());
+        if !wrecker.artifact.supports_dump_item(dump_item) {
+            return Err(anyhow!("unsupported dump item for this artifact"));
+        }
 
-                for result in &dump_results {
-                    let filename = result.filename();
+        print!("dumping item \"{}\" ...", item);
 
-                    let full_filename =
-                        format!("havoc_{}_{}", wrecker.artifact.dump_prefix(), filename);
-                    let dest = cwd.join(full_filename.clone());
+        let dump_results = wrecker
+            .dump(dump_item)
+            .with_context(|| format!("failed to dump {:?} ({})", dump_item, item))?;
 
-                    println!(
-                        "\twriting \"{}\" ({:?}, {}) to {}",
-                        result.name,
-                        result.typ,
-                        result.content.len(),
-                        full_filename
-                    );
+        println!(" {} result(s)", dump_results.len());
 
-                    result.dump_to(&dest).unwrap_or_else(|err| {
-                        panic!(
-                            "failed to dump {:?} ({}) to disk: {:?}",
-                            dump_item, item, err
-                        )
-                    });
-                }
-            }
+        for result in &dump_results {
+            let filename = result.filename();
+
+            let full_filename = format!("havoc_{}_{}", wrecker.artifact.dump_prefix(), filename);
+            let dest = cwd.join(full_filename.clone());
+
+            print!(
+                "\twriting \"{}\" ({:?}, {}) to {} ...",
+                result.name,
+                result.typ,
+                result.content.len(),
+                full_filename
+            );
+
+            result
+                .dump_to(&dest)
+                .with_context(|| format!("failed to write {:?} ({}) to disk", dump_item, item))?;
+
+            println!(" done");
         }
     }
 
