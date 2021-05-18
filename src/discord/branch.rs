@@ -1,7 +1,9 @@
+use serde::Serialize;
 use url::Url;
 
 /// A Discord branch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Branch {
     Stable,
     Ptb,

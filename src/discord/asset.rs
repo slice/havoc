@@ -1,7 +1,9 @@
+use serde::Serialize;
 use url::Url;
 
 /// A kind of frontend asset.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum FeAssetType {
     Css,
     Js,
@@ -32,9 +34,10 @@ impl FeAssetType {
 /// A frontend asset.
 ///
 /// This refers to a file that has been deployed onto Discord's CDN.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct FeAsset {
     pub name: String,
+    #[serde(rename = "type")]
     pub typ: FeAssetType,
 }
 

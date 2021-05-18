@@ -11,6 +11,7 @@ use super::discord::FeAsset;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum DumpItem {
+    Itself,
     CssClasses,
     WebpackChunks,
 }
@@ -24,6 +25,7 @@ impl std::str::FromStr for DumpItem {
         match s {
             "classes" => Ok(CssClasses),
             "chunks" => Ok(WebpackChunks),
+            "self" => Ok(Itself),
             _ => Err(()),
         }
     }

@@ -11,12 +11,14 @@ use crate::util::measure;
 pub use asset::*;
 pub use branch::*;
 
+use serde::Serialize;
+
 /// A frontend manifest.
 ///
 /// "Manifest" refers to a surface-level snapshot of a build which only
 /// contains minimal information. Further details can be gleaned from the data
 /// within this structure. For more information, see [`FeBuild`].
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct FeManifest {
     pub branch: Branch,
     pub assets: Vec<Rc<FeAsset>>,
@@ -57,8 +59,9 @@ impl Artifact for FeManifest {
 /// `canary.discord.com`, etc. It should be clarified that the desktop
 /// application loads these pages, too; it just enables additional
 /// functionality such as push to talk, keybinds, etc.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct FeBuild {
+    #[serde(flatten)]
     pub manifest: FeManifest,
     pub hash: String,
     pub number: u32,
@@ -142,7 +145,10 @@ impl Artifact for FeBuild {
     }
 
     fn supports_dump_item(&self, item: DumpItem) -> bool {
-        matches!(item, DumpItem::CssClasses | DumpItem::WebpackChunks)
+        matches!(
+            item,
+            DumpItem::CssClasses | DumpItem::WebpackChunks | DumpItem::Itself
+        )
     }
 
     fn dump(
@@ -153,6 +159,7 @@ impl Artifact for FeBuild {
         match item {
             DumpItem::CssClasses => self.dump_classes(acm),
             DumpItem::WebpackChunks => self.dump_webpack_chunks(acm),
+            DumpItem::Itself => Ok(vec![DumpResult::from_serializable(self, "build")?]),
         }
     }
 }
