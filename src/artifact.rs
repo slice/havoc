@@ -105,7 +105,7 @@ pub trait Artifact: Display {
     fn dump(
         &self,
         item: DumpItem,
-        asset_content_nap: &AssetContentMap,
+        asset_content_map: &AssetContentMap,
     ) -> Result<Vec<DumpResult>, Box<dyn Error + Send + Sync>>;
 
     /// Returns the assets associated with this artifact.
