@@ -1,20 +1,27 @@
-<h1><img src="art/havoc.png" alt="havoc" title="havoc"></h1>
+# havoc
 
-havoc is a [Discord] client scraping and processing toolkit written in Rust
-that aims to be robust, efficient, and correct.
+havoc is a [Discord] client instrumentation toolkit written in Rust that aims to
+be robust, correct, and efficient.
 
-[Discord]: https://discord.com
+[discord]: https://discord.com
 
-havoc is under heavy development and isn't quite ready for use just yet. Come
-back later!
+## Usage
+
+Binaries are currently unavailable. To get started, make sure you have a
+functional [Rust] toolchain on your machine (try [rustup]). Clone the repository
+and try out these commands in a terminal:
+
+[rust]: https://www.rust-lang.org
+[rustup]: https://rustup.rs
+
+```sh
+# Scrape the latest Canary build and output basic information (such as the version number) to stdout.
+$ cargo run -- scrape fe:canary
+
+# Scrape the latest Canary build and dump build information into a JSON file in the current directory.
+$ cargo run -- scrape fe:canary --dump self
+```
 
 ## License
 
 havoc is distributed under the MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-<sub>Project logo inspired by [FoamFix], which was written by [asie].</sub>
-
-[FoamFix]: https://www.curseforge.com/minecraft/mc-mods/foamfix-optimization-mod
-[asie]: https://asie.pl
