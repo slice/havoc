@@ -46,12 +46,12 @@ fn main() -> Result<()> {
             }
         };
 
-        let wrecker = Wrecker::scrape_fe_build(target)?;
+        let scrape::Target::Frontend(branch) = target;
+        let wrecker = Wrecker::scrape_fe_build(branch)?;
 
         println!("scraped: {}", wrecker.artifact);
 
         let assets = wrecker.artifact.assets();
-
         println!("assets ({}):", assets.len());
 
         for asset in wrecker.artifact.assets() {

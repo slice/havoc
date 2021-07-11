@@ -4,8 +4,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::artifact::{Artifact, AssetContentMap, DumpItem, DumpResult};
-use crate::discord::FeAsset;
-use crate::scrape::Target;
+use crate::discord::{Branch, FeAsset};
 use crate::util::measure;
 
 pub struct Wrecker {
@@ -14,9 +13,7 @@ pub struct Wrecker {
 }
 
 impl Wrecker {
-    pub fn scrape_fe_manifest(target: Target) -> Result<Wrecker> {
-        let Target::Frontend(branch) = target;
-
+    pub fn scrape_fe_manifest(branch: Branch) -> Result<Wrecker> {
         let manifest = crate::scrape::scrape_fe_manifest(branch)
             .context("failed to scrape frontend manifest")?;
 
@@ -26,9 +23,7 @@ impl Wrecker {
         })
     }
 
-    pub fn scrape_fe_build(target: Target) -> Result<Wrecker> {
-        let Target::Frontend(branch) = target;
-
+    pub fn scrape_fe_build(branch: Branch) -> Result<Wrecker> {
         let manifest = crate::scrape::scrape_fe_manifest(branch)
             .context("failed to scrape frontend manifest")?;
 
