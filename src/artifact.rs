@@ -13,7 +13,7 @@ use super::discord::FeAsset;
 pub enum DumpItem {
     Itself,
     CssClasses,
-    WebpackChunks,
+    WebpackModules,
 }
 
 impl std::str::FromStr for DumpItem {
@@ -24,7 +24,7 @@ impl std::str::FromStr for DumpItem {
 
         match s {
             "classes" => Ok(CssClasses),
-            "chunks" => Ok(WebpackChunks),
+            "modules" => Ok(WebpackModules),
             "self" => Ok(Itself),
             _ => Err(()),
         }

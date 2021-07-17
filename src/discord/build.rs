@@ -1,10 +1,12 @@
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 use crate::artifact::{Artifact, AssetContentMap, DumpItem, DumpResult};
-use crate::discord::{FeAsset, FeManifest};
+use crate::discord::{FeAsset, FeAssetType, FeManifest};
+use crate::parse::webpack::ModuleId;
 use crate::util::measure;
 
 use serde::Serialize;
@@ -48,16 +50,16 @@ impl FeBuild {
         )?])
     }
 
-    fn parse_webpack_chunks(
+    fn parse_webpack_chunk<'acm>(
         &self,
-        acm: &AssetContentMap,
-    ) -> Result<(swc_ecma_ast::Script, crate::parse::WebpackChunk), Box<dyn Error + Send + Sync>>
+        acm: &'acm AssetContentMap,
+    ) -> Result<(swc_ecma_ast::Script, HashMap<ModuleId, &'acm str>), Box<dyn Error + Send + Sync>>
     {
         let assets = &self.manifest.assets;
 
         let last_script = assets
             .iter()
-            .filter(|asset| asset.typ == crate::discord::FeAssetType::Js)
+            .filter(|asset| asset.typ == FeAssetType::Js)
             .last()
             .ok_or("couldn't find entrypoint js")?;
 
@@ -69,18 +71,28 @@ impl FeBuild {
 
         let chunk = crate::parse::walk_webpack_chunk(&script)?;
 
-        Ok((script, chunk))
+        let modules: HashMap<ModuleId, &str> = chunk
+            .modules
+            .iter()
+            .map(|(module_id, module)| {
+                use swc_common::Spanned;
+                let span = module.func.span();
+
+                let lo = span.lo.0 as usize;
+                let hi = span.hi.0 as usize;
+                (*module_id, &entrypoint_js[lo..hi])
+            })
+            .collect();
+
+        Ok((script, modules))
     }
 
-    fn dump_webpack_chunks(
+    fn dump_webpack_modules(
         &self,
         acm: &AssetContentMap,
     ) -> Result<Vec<DumpResult>, Box<dyn Error + Send + Sync>> {
-        let (_, webpack_chunk) = self.parse_webpack_chunks(acm)?;
-        Ok(vec![DumpResult::from_serializable(
-            &webpack_chunk.modules,
-            "entrypoint",
-        )?])
+        let (_, modules) = self.parse_webpack_chunk(acm)?;
+        Ok(vec![DumpResult::from_serializable(&modules, "entrypoint")?])
     }
 }
 
@@ -103,7 +115,7 @@ impl Artifact for FeBuild {
     fn supports_dump_item(&self, item: DumpItem) -> bool {
         matches!(
             item,
-            DumpItem::CssClasses | DumpItem::WebpackChunks | DumpItem::Itself
+            DumpItem::CssClasses | DumpItem::WebpackModules | DumpItem::Itself
         )
     }
 
@@ -114,7 +126,7 @@ impl Artifact for FeBuild {
     ) -> Result<Vec<DumpResult>, Box<dyn Error + Send + Sync>> {
         match item {
             DumpItem::CssClasses => self.dump_classes(acm),
-            DumpItem::WebpackChunks => self.dump_webpack_chunks(acm),
+            DumpItem::WebpackModules => self.dump_webpack_modules(acm),
             DumpItem::Itself => Ok(vec![DumpResult::from_serializable(self, "build")?]),
         }
     }

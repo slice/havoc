@@ -1,28 +1,54 @@
 use std::collections::HashMap;
 
+use serde::Serialize;
 extern crate swc_ecma_ast as ast;
 
 use super::ParseError;
 
+/// A webpack chunk ID.
 pub type ChunkId = u32;
+
+/// A webpack module ID.
+///
+/// Webpack module IDs are, in practice, globally unique.
 pub type ModuleId = u32;
 
-pub struct WebpackChunk {
-    /// The chunks that are included in this chunk script.
+/// A webpack chunk.
+///
+/// A chunk is a file that encapsulates multiple modules. It can be loaded
+/// asynchronously through the chunk loader.
+pub struct WebpackChunk<'a> {
+    /// The chunks IDs included in this script.
     pub chunks: Vec<ChunkId>,
-    pub modules: HashMap<ChunkId, ()>,
+
+    /// The modules within this chunk.
+    pub modules: HashMap<ChunkId, WebpackModule<'a>>,
+
+    /// The entrypoint modules within this chunk.
     pub entrypoints: Vec<ChunkId>,
 }
 
+/// A webpack module.
+#[derive(Serialize)]
+pub struct WebpackModule<'a> {
+    /// The module's ID.
+    pub id: ChunkId,
+
+    /// The module's function.
+    pub func: &'a ast::Function,
+}
+
 /// Walks a generic Webpack chunk that contains modules.
-pub fn walk_webpack_chunk(script: &ast::Script) -> Result<WebpackChunk, ParseError> {
+pub fn walk_webpack_chunk<'script>(
+    script: &'script ast::Script,
+) -> Result<WebpackChunk<'script>, ParseError> {
     use ParseError::MissingNode;
 
     // NOTE: This is the format for `webpackJsonp`/`webpackChunk`:
     //
     // webpackJsonp.push([
     //
-    //   // chunk ids:
+    //   // chunk IDs:
     //   [1],
     //
     //   // modules (can also be an object; indexes/keys are global IDs):
@@ -55,14 +81,9 @@ pub fn walk_webpack_chunk(script: &ast::Script) -> Result<WebpackChunk, ParseErr
         let modules_expr = &*boxed_modules_expr;
 
         then {
-            // let mut last_module_id: ModuleId = 0;
-
-            walk_module_listing(modules_expr, |module_id, _func| {
-                // if module_id - last_module_id > 1 {
-                //     log::debug!("detected gap in module ids: from {} to {}", last_module_id, module_id);
-                // }
-                // last_module_id = module_id;
-                webpack_chunk.modules.insert(module_id, ());
+            walk_module_listing(modules_expr, |module_id, func| {
+                let module = WebpackModule { id: module_id, func: &func };
+                webpack_chunk.modules.insert(module_id, module);
             });
 
             log::debug!("walked {} modules", webpack_chunk.modules.len());
@@ -85,7 +106,10 @@ pub fn walk_webpack_chunk(script: &ast::Script) -> Result<WebpackChunk, ParseErr
 
 /// Walks a module listing. It can either be an array (with indexes as the
 /// IDs), or an object (where the keys are the IDs).
-fn walk_module_listing(modules: &ast::Expr, mut callback: impl FnMut(ModuleId, &ast::Function)) {
+fn walk_module_listing<'script>(
+    modules: &'script ast::Expr,
+    mut callback: impl FnMut(ModuleId, &'script ast::Function),
+) {
     match modules {
         ast::Expr::Array(ast::ArrayLit { elems, .. }) => {
             for (module_id, optional_expr_or_spread) in elems.iter().enumerate() {
