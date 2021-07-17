@@ -39,9 +39,7 @@ pub struct WebpackModule<'a> {
 }
 
 /// Walks a generic Webpack chunk that contains modules.
-pub fn walk_webpack_chunk<'script>(
-    script: &'script ast::Script,
-) -> Result<WebpackChunk<'script>, ParseError> {
+pub fn walk_webpack_chunk(script: &ast::Script) -> Result<WebpackChunk, ParseError> {
     use ParseError::MissingNode;
 
     // NOTE: This is the format for `webpackJsonp`/`webpackChunk`:
