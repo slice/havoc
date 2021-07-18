@@ -42,6 +42,9 @@ pub struct WebpackModule<'a> {
 pub fn walk_webpack_chunk(script: &ast::Script) -> Result<WebpackChunk, ParseError> {
     use ParseError::MissingNode;
 
+    let span = tracing::info_span!("webpack_chunk_walking");
+    let _enter = span.enter();
+
     // NOTE: This is the format for `webpackJsonp`/`webpackChunk`:
     //
     // webpackJsonp.push([
@@ -81,10 +84,15 @@ pub fn walk_webpack_chunk(script: &ast::Script) -> Result<WebpackChunk, ParseErr
         then {
             walk_module_listing(modules_expr, |module_id, func| {
                 let module = WebpackModule { id: module_id, func: &func };
+
+                use swc_common::Spanned;
+                let span = func.span();
+                tracing::trace!("found module {} (span: {} to {}, len: {})", module_id, span.lo.0, span.hi.0, span.hi.0 - span.lo.0);
+
                 webpack_chunk.modules.insert(module_id, module);
             });
 
-            log::debug!("walked {} modules", webpack_chunk.modules.len());
+            tracing::info!("walked {} modules", webpack_chunk.modules.len());
         } else {
             // NOTE(slice): This error message isn't ideal, but the code needed
             // to achieve good error messages isn't quite ergonomic. Also, we

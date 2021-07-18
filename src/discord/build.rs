@@ -7,7 +7,6 @@ use std::rc::Rc;
 use crate::artifact::{Artifact, AssetContentMap, DumpItem, DumpResult};
 use crate::discord::{FeAsset, FeAssetType, FeManifest};
 use crate::parse::webpack::ModuleId;
-use crate::util::measure;
 
 use serde::Serialize;
 
@@ -65,9 +64,8 @@ impl FeBuild {
 
         let entrypoint_js = acm.get(last_script).ok_or("no entrypoint js content")?;
 
-        let script = measure("parsing entrypoint script", || {
-            crate::parse::parse_script(&entrypoint_js)
-        })?;
+        tracing::info!("parsing entrypoint script");
+        let script = crate::parse::parse_script(&entrypoint_js)?;
 
         let chunk = crate::parse::walk_webpack_chunk(&script)?;
 

@@ -5,7 +5,6 @@ use std::rc::Rc;
 
 use crate::artifact::{Artifact, AssetContentMap, DumpItem, DumpResult};
 use crate::discord::{Branch, FeAsset};
-use crate::util::measure;
 
 pub struct Wrecker {
     asset_content: AssetContentMap,
@@ -27,14 +26,14 @@ impl Wrecker {
         let manifest = crate::scrape::scrape_fe_manifest(branch)
             .context("failed to scrape frontend manifest")?;
 
-        let acm = fetch_assets(&manifest.assets)?;
+        let asset_content_map = fetch_assets(&manifest.assets)?;
 
-        let build = crate::scrape::glean_frontend_build(manifest, &acm)
+        let build = crate::scrape::glean_frontend_build(manifest, &asset_content_map)
             .context("failed to glean frontend build")?;
 
         Ok(Wrecker {
             artifact: Box::new(build),
-            asset_content: acm,
+            asset_content: asset_content_map,
         })
     }
 
@@ -44,6 +43,9 @@ impl Wrecker {
     }
 
     pub fn dump(&self, dump_item: DumpItem) -> Result<Vec<DumpResult>> {
+        let dump_span = tracing::info_span!("dumping", ?dump_item);
+        let _enter = dump_span.enter();
+
         self.artifact
             .dump(dump_item, &self.asset_content)
             .map_err(|err| anyhow::anyhow!(err))
@@ -54,10 +56,8 @@ pub fn fetch_assets(assets: &[Rc<FeAsset>]) -> Result<AssetContentMap> {
     let mut map = HashMap::new();
 
     for asset in assets {
-        let content = measure(&format!("fetching {}", asset.url()), || {
-            crate::scrape::get_text(asset.url())
-        })
-        .with_context(|| format!("failed to prefetch {}", asset.url()))?;
+        let content = crate::scrape::get_text(asset.url())
+            .with_context(|| format!("failed to prefetch {}", asset.url()))?;
 
         map.insert(Rc::clone(&asset), content);
     }

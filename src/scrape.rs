@@ -21,7 +21,7 @@ pub enum ScrapeError {
 }
 
 pub(crate) fn get_text(url: Url) -> Result<String, ScrapeError> {
-    log::debug!("GET {}", url.as_str());
+    tracing::info!("GET {}", url.as_str());
     // TODO: use custom headers here
     let mut response = isahc::get(url.as_str())?;
     response.text().map_err(ScrapeError::DecodingError)

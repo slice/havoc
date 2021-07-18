@@ -70,9 +70,9 @@ pub fn walk_classes_chunk(script: &ast::Script) -> Result<ClassModuleMap, ParseE
     let mut visitor = ClassModuleVisitor {
         modules: HashMap::new(),
     };
-    crate::util::measure("visiting class modules and mapping", || {
-        script.visit_children_with(&mut visitor)
-    });
+
+    tracing::info!("visiting class modules and mapping");
+    script.visit_children_with(&mut visitor);
 
     let total_mappings: usize = visitor
         .modules
@@ -80,7 +80,7 @@ pub fn walk_classes_chunk(script: &ast::Script) -> Result<ClassModuleMap, ParseE
         .map(|(_, mappings)| mappings.len())
         .sum();
 
-    log::debug!(
+    tracing::info!(
         "visited {} class module(s), totalling to {} class mappings",
         visitor.modules.len(),
         total_mappings

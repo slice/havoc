@@ -6,7 +6,7 @@ use havoc::scrape;
 use havoc::wrecker::Wrecker;
 
 fn main() -> Result<()> {
-    pretty_env_logger::init();
+    tracing_subscriber::fmt::init();
 
     let matches = clap::App::new("havoc")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
