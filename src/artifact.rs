@@ -5,8 +5,7 @@ use std::rc::Rc;
 
 use thiserror::Error;
 
-use crate::assets::Assets;
-use crate::discord::FeAsset;
+use crate::discord::{Assets, FeAsset};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]

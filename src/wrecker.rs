@@ -1,8 +1,7 @@
 use anyhow::{Context, Result};
 
 use crate::artifact::{Artifact, DumpItem, DumpResult};
-use crate::assets::Assets;
-use crate::discord::Branch;
+use crate::discord::{Assets, Branch};
 
 pub struct Wrecker {
     pub artifact: Box<dyn Artifact>,

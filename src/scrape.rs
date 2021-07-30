@@ -6,8 +6,7 @@ use regex::Regex;
 use thiserror::Error;
 use url::Url;
 
-use crate::assets::{Assets, RootScript};
-use crate::discord;
+use crate::discord::{self, Assets, RootScript};
 
 #[derive(Error, Debug)]
 pub enum ScrapeError {

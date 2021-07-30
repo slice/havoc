@@ -5,8 +5,7 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 use crate::artifact::{Artifact, DumpItem, DumpResult};
-use crate::assets::{Assets, RootScript};
-use crate::discord::{FeAsset, FeManifest};
+use crate::discord::{Assets, FeAsset, FeManifest, RootScript};
 use crate::parse::webpack::ModuleId;
 
 use serde::Serialize;

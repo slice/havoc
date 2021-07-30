@@ -3,8 +3,7 @@ use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 use crate::artifact::{Artifact, DumpItem, DumpResult};
-use crate::assets::Assets;
-use crate::discord::{Branch, FeAsset};
+use crate::discord::{Assets, Branch, FeAsset};
 
 use serde::Serialize;
 
