@@ -1,4 +1,4 @@
 /target
 
-# Ignore any JSON files created by the command line tool.
 /havoc_*.json
+/*.js
