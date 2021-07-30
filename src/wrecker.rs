@@ -1,14 +1,12 @@
 use anyhow::{Context, Result};
 
-use std::collections::HashMap;
-use std::rc::Rc;
-
-use crate::artifact::{Artifact, AssetContentMap, DumpItem, DumpResult};
-use crate::discord::{Branch, FeAsset};
+use crate::artifact::{Artifact, DumpItem, DumpResult};
+use crate::assets::Assets;
+use crate::discord::Branch;
 
 pub struct Wrecker {
-    asset_content: AssetContentMap,
     pub artifact: Box<dyn Artifact>,
+    assets: Assets,
 }
 
 impl Wrecker {
@@ -18,7 +16,7 @@ impl Wrecker {
 
         Ok(Wrecker {
             artifact: Box::new(manifest),
-            asset_content: HashMap::new(),
+            assets: Assets::new(),
         })
     }
 
@@ -26,41 +24,23 @@ impl Wrecker {
         let manifest = crate::scrape::scrape_fe_manifest(branch)
             .context("failed to scrape frontend manifest")?;
 
-        let asset_content_map = fetch_assets(&manifest.assets)?;
+        let mut assets = Assets::with_assets(manifest.assets.clone());
 
-        let build = crate::scrape::glean_frontend_build(manifest, &asset_content_map)
+        let build = crate::scrape::glean_frontend_build(manifest, &mut assets)
             .context("failed to glean frontend build")?;
 
         Ok(Wrecker {
             artifact: Box::new(build),
-            asset_content: asset_content_map,
+            assets,
         })
     }
 
-    pub fn fetch_assets(&mut self) -> Result<()> {
-        self.asset_content = fetch_assets(&self.artifact.assets())?;
-        Ok(())
-    }
-
-    pub fn dump(&self, dump_item: DumpItem) -> Result<Vec<DumpResult>> {
+    pub fn dump(&mut self, dump_item: DumpItem) -> Result<Vec<DumpResult>> {
         let dump_span = tracing::info_span!("dumping", ?dump_item);
         let _enter = dump_span.enter();
 
         self.artifact
-            .dump(dump_item, &self.asset_content)
+            .dump(dump_item, &mut self.assets)
             .map_err(|err| anyhow::anyhow!(err))
     }
-}
-
-pub fn fetch_assets(assets: &[Rc<FeAsset>]) -> Result<AssetContentMap> {
-    let mut map = HashMap::new();
-
-    for asset in assets {
-        let content = crate::scrape::get_text(asset.url())
-            .with_context(|| format!("failed to prefetch {}", asset.url()))?;
-
-        map.insert(Rc::clone(&asset), content);
-    }
-
-    Ok(map)
 }

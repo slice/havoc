@@ -47,7 +47,7 @@ fn main() -> Result<()> {
         };
 
         let scrape::Target::Frontend(branch) = target;
-        let wrecker = Wrecker::scrape_fe_build(branch)?;
+        let mut wrecker = Wrecker::scrape_fe_build(branch)?;
 
         println!("scraped: {}", wrecker.artifact);
 
@@ -62,14 +62,14 @@ fn main() -> Result<()> {
             .values_of("dump")
             .map(|values| values.collect::<Vec<_>>())
         {
-            dump_items(&dumping, &wrecker)?;
+            dump_items(&dumping, &mut wrecker)?;
         }
     }
 
     Ok(())
 }
 
-fn dump_items(dumping: &[&str], wrecker: &Wrecker) -> Result<()> {
+fn dump_items(dumping: &[&str], wrecker: &mut Wrecker) -> Result<()> {
     let cwd = std::env::current_dir().context("failed to obtain current working dir")?;
 
     for item in dumping {

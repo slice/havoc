@@ -4,8 +4,9 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-use crate::artifact::{Artifact, AssetContentMap, DumpItem, DumpResult};
-use crate::discord::{FeAsset, FeAssetType, FeManifest};
+use crate::artifact::{Artifact, DumpItem, DumpResult};
+use crate::assets::{Assets, RootScript};
+use crate::discord::{FeAsset, FeManifest};
 use crate::parse::webpack::ModuleId;
 
 use serde::Serialize;
@@ -27,11 +28,13 @@ pub struct FeBuild {
 impl FeBuild {
     pub fn parse_classes(
         &self,
-        acm: &AssetContentMap,
+        assets: &mut Assets,
     ) -> Result<crate::parse::ClassModuleMap, Box<dyn Error + Send + Sync>> {
-        let asset = &self.manifest.assets.get(1).ok_or("no classes asset")?;
-        let js = acm.get(*asset).ok_or("couldn't find classes js")?;
-        let script = crate::parse::parse_script(&js)?;
+        let classes_asset = assets.find_root_script(RootScript::Classes).expect(
+            "unable to locate classes root script; discord has updated their /channels/@me html",
+        );
+        let classes_js = assets.content(&classes_asset)?;
+        let script = crate::parse::parse_script(&classes_js)?;
         let mapping =
             crate::parse::walk_classes_chunk(&script).map_err(|_| "failed to walk classes js")?;
 
@@ -40,9 +43,9 @@ impl FeBuild {
 
     fn dump_classes(
         &self,
-        acm: &AssetContentMap,
+        assets: &mut Assets,
     ) -> Result<Vec<DumpResult>, Box<dyn Error + Send + Sync>> {
-        let class_module_map = self.parse_classes(acm)?;
+        let class_module_map = self.parse_classes(assets)?;
         Ok(vec![DumpResult::from_serializable(
             &class_module_map,
             "classes",
@@ -51,18 +54,13 @@ impl FeBuild {
 
     fn parse_webpack_chunk<'acm>(
         &self,
-        acm: &'acm AssetContentMap,
+        assets: &'acm mut Assets,
     ) -> Result<(swc_ecma_ast::Script, HashMap<ModuleId, &'acm str>), Box<dyn Error + Send + Sync>>
     {
-        let assets = &self.manifest.assets;
-
-        let last_script = assets
-            .iter()
-            .filter(|asset| asset.typ == FeAssetType::Js)
-            .last()
-            .ok_or("couldn't find entrypoint js")?;
-
-        let entrypoint_js = acm.get(last_script).ok_or("no entrypoint js content")?;
+        let entrypoint_asset = assets.find_root_script(RootScript::Entrypoint).expect(
+            "unable to locate entrypoint root script; discord has updated their /channels/@me html",
+        );
+        let entrypoint_js = assets.content(&entrypoint_asset)?;
 
         tracing::info!("parsing entrypoint script");
         let script = crate::parse::parse_script(&entrypoint_js)?;
@@ -87,9 +85,9 @@ impl FeBuild {
 
     fn dump_webpack_modules(
         &self,
-        acm: &AssetContentMap,
+        assets: &mut Assets,
     ) -> Result<Vec<DumpResult>, Box<dyn Error + Send + Sync>> {
-        let (_, modules) = self.parse_webpack_chunk(acm)?;
+        let (_, modules) = self.parse_webpack_chunk(assets)?;
         Ok(vec![DumpResult::from_serializable(&modules, "entrypoint")?])
     }
 }
@@ -120,11 +118,11 @@ impl Artifact for FeBuild {
     fn dump(
         &self,
         item: DumpItem,
-        acm: &AssetContentMap,
+        assets: &mut Assets,
     ) -> Result<Vec<DumpResult>, Box<dyn Error + Send + Sync>> {
         match item {
-            DumpItem::CssClasses => self.dump_classes(acm),
-            DumpItem::WebpackModules => self.dump_webpack_modules(acm),
+            DumpItem::CssClasses => self.dump_classes(assets),
+            DumpItem::WebpackModules => self.dump_webpack_modules(assets),
             DumpItem::Itself => Ok(vec![DumpResult::from_serializable(self, "build")?]),
         }
     }

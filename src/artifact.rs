@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::Display;
 use std::path::Path;
@@ -6,7 +5,8 @@ use std::rc::Rc;
 
 use thiserror::Error;
 
-use super::discord::FeAsset;
+use crate::assets::Assets;
+use crate::discord::FeAsset;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -87,8 +87,6 @@ impl DumpResult {
     }
 }
 
-pub type AssetContentMap = HashMap<Rc<FeAsset>, String>;
-
 pub trait Artifact: Display {
     /// Returns whether a dump item is supported or not.
     fn supports_dump_item(&self, _item: DumpItem) -> bool {
@@ -105,7 +103,7 @@ pub trait Artifact: Display {
     fn dump(
         &self,
         item: DumpItem,
-        asset_content_map: &AssetContentMap,
+        assets: &mut Assets,
     ) -> Result<Vec<DumpResult>, Box<dyn Error + Send + Sync>>;
 
     /// Returns the assets associated with this artifact.

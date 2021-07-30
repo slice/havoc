@@ -2,7 +2,8 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
-use crate::artifact::{Artifact, AssetContentMap, DumpItem, DumpResult};
+use crate::artifact::{Artifact, DumpItem, DumpResult};
+use crate::assets::Assets;
 use crate::discord::{Branch, FeAsset};
 
 use serde::Serialize;
@@ -42,7 +43,7 @@ impl Artifact for FeManifest {
     fn dump(
         &self,
         _: DumpItem,
-        _: &AssetContentMap,
+        _: &mut Assets,
     ) -> Result<Vec<DumpResult>, Box<dyn Error + Send + Sync>> {
         panic!("unsupported dump operation")
     }

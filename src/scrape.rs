@@ -6,6 +6,7 @@ use regex::Regex;
 use thiserror::Error;
 use url::Url;
 
+use crate::assets::{Assets, RootScript};
 use crate::discord;
 
 #[derive(Error, Debug)]
@@ -62,32 +63,16 @@ pub fn scrape_fe_manifest(branch: discord::Branch) -> Result<discord::FeManifest
 /// Gleans a [`discord::FeBuild`] from a [`discord::FeManifest`].
 pub fn glean_frontend_build(
     fe_manifest: discord::FeManifest,
-    asset_content_map: &crate::artifact::AssetContentMap,
+    assets: &mut Assets,
 ) -> Result<discord::FeBuild, ScrapeError> {
-    // Right now, the scripts tags appear within in the page content in this
-    // specific order:
-    //
-    // #0: chunk loader (webpack)
-    // #1: CSS classnames
-    // #2: vendor (??)
-    // #3: main
-    //
-    // We can't depend on this ordering forever, so in the future we should
-    // attempt to fetch and scan other scripts for build information based on
-    // some heuristic, instead of just assuming that the last one has it.
-    //
-    // Here we extract static build information from the main bundle, relying
-    // on the aforementioned assumptions.
+    // locate the entrypoint script, which contains the build information we're
+    // interested in.
+    let entrypoint_asset = assets.find_root_script(RootScript::Entrypoint).expect(
+        "unable to locate entrypoint root script; discord has updated their /channels/@me html",
+    );
+    let entrypoint_js = assets.content(&*entrypoint_asset)?;
 
-    let last_script_asset = fe_manifest
-        .assets
-        .iter()
-        .filter(|asset| asset.typ == discord::FeAssetType::Js)
-        .last()
-        .unwrap();
-
-    let (hash, number) =
-        match_static_build_information(&asset_content_map.get(last_script_asset).unwrap())?;
+    let (hash, number) = match_static_build_information(&entrypoint_js)?;
 
     Ok(discord::FeBuild {
         manifest: fe_manifest,
