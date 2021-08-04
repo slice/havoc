@@ -4,8 +4,9 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-use crate::artifact::{Artifact, DumpItem, DumpResult};
+use crate::artifact::Artifact;
 use crate::discord::{Assets, FeAsset, FeManifest, RootScript};
+use crate::dump::{DumpItem, DumpResult};
 use crate::parse::webpack::ModuleId;
 
 use serde::Serialize;

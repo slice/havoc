@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use clap::{Arg, SubCommand};
 
-use havoc::artifact::DumpItem;
+use havoc::dump::DumpItem;
 use havoc::scrape;
 use havoc::wrecker::Wrecker;
 

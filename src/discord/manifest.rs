@@ -2,8 +2,9 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
-use crate::artifact::{Artifact, DumpItem, DumpResult};
+use crate::artifact::Artifact;
 use crate::discord::{Assets, Branch, FeAsset};
+use crate::dump::{DumpItem, DumpResult};
 
 use serde::Serialize;
 
@@ -12,7 +13,7 @@ use serde::Serialize;
 /// The term "manifest" refers to a surface-level representation of a build
 /// which only contains minimal information. Further details can be gathered
 /// using the data within this structure. For more information,
-/// see [`FeBuild`].
+/// see [`crate::discord::FeBuild`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct FeManifest {
     pub branch: Branch,

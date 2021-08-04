@@ -67,6 +67,7 @@ impl Assets {
             Entry::Vacant(entry) => {
                 tracing::info!(asset = ?asset, "content requested for unfetched asset, fetching...");
                 let content = crate::scrape::get_text(asset.url())?;
+                content.len();
                 Ok(entry.insert(content))
             }
         }
