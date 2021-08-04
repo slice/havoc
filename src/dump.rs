@@ -1,4 +1,4 @@
-//! Types that handle extracting data from [`Artifact`s](crate::artifact::Artifact) ("dumping").
+//! Types that handle extracting data from [`Artifact`](crate::artifact::Artifact)s ("dumping").
 
 use std::path::Path;
 
