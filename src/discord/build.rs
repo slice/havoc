@@ -1,12 +1,11 @@
 use std::collections::HashMap;
-use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 use crate::artifact::Artifact;
 use crate::discord::{Assets, FeAsset, FeManifest, RootScript};
-use crate::dump::{DumpItem, DumpResult};
+use crate::dump::{DumpError, DumpItem, DumpResult};
 use crate::parse::webpack::ModuleId;
 
 use serde::Serialize;
@@ -29,22 +28,18 @@ impl FeBuild {
     pub fn parse_classes(
         &self,
         assets: &mut Assets,
-    ) -> Result<crate::parse::ClassModuleMap, Box<dyn Error + Send + Sync>> {
+    ) -> Result<crate::parse::ClassModuleMap, DumpError> {
         let classes_asset = assets.find_root_script(RootScript::Classes).expect(
             "unable to locate classes root script; discord has updated their /channels/@me html",
         );
         let classes_js = assets.content(&classes_asset)?;
         let script = crate::parse::parse_script(&classes_js)?;
-        let mapping =
-            crate::parse::walk_classes_chunk(&script).map_err(|_| "failed to walk classes js")?;
+        let mapping = crate::parse::walk_classes_chunk(&script)?;
 
         Ok(mapping)
     }
 
-    fn dump_classes(
-        &self,
-        assets: &mut Assets,
-    ) -> Result<Vec<DumpResult>, Box<dyn Error + Send + Sync>> {
+    fn dump_classes(&self, assets: &mut Assets) -> Result<Vec<DumpResult>, DumpError> {
         let class_module_map = self.parse_classes(assets)?;
         Ok(vec![DumpResult::from_serializable(
             &class_module_map,
@@ -55,8 +50,7 @@ impl FeBuild {
     fn parse_webpack_chunk<'acm>(
         &self,
         assets: &'acm mut Assets,
-    ) -> Result<(swc_ecma_ast::Script, HashMap<ModuleId, &'acm str>), Box<dyn Error + Send + Sync>>
-    {
+    ) -> Result<(swc_ecma_ast::Script, HashMap<ModuleId, &'acm str>), DumpError> {
         let entrypoint_asset = assets.find_root_script(RootScript::Entrypoint).expect(
             "unable to locate entrypoint root script; discord has updated their /channels/@me html",
         );
@@ -83,10 +77,7 @@ impl FeBuild {
         Ok((script, modules))
     }
 
-    fn dump_webpack_modules(
-        &self,
-        assets: &mut Assets,
-    ) -> Result<Vec<DumpResult>, Box<dyn Error + Send + Sync>> {
+    fn dump_webpack_modules(&self, assets: &mut Assets) -> Result<Vec<DumpResult>, DumpError> {
         let (_, modules) = self.parse_webpack_chunk(assets)?;
         Ok(vec![DumpResult::from_serializable(&modules, "entrypoint")?])
     }
@@ -115,11 +106,7 @@ impl Artifact for FeBuild {
         )
     }
 
-    fn dump(
-        &self,
-        item: DumpItem,
-        assets: &mut Assets,
-    ) -> Result<Vec<DumpResult>, Box<dyn Error + Send + Sync>> {
+    fn dump(&self, item: DumpItem, assets: &mut Assets) -> Result<Vec<DumpResult>, DumpError> {
         match item {
             DumpItem::CssClasses => self.dump_classes(assets),
             DumpItem::WebpackModules => self.dump_webpack_modules(assets),

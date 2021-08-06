@@ -1,10 +1,9 @@
-use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 use crate::artifact::Artifact;
 use crate::discord::{Assets, Branch, FeAsset};
-use crate::dump::{DumpItem, DumpResult};
+use crate::dump::{DumpError, DumpItem, DumpResult};
 
 use serde::Serialize;
 
@@ -40,11 +39,7 @@ impl Artifact for FeManifest {
         format!("fe_{}", format!("{:?}", self.branch).to_ascii_lowercase())
     }
 
-    fn dump(
-        &self,
-        _: DumpItem,
-        _: &mut Assets,
-    ) -> Result<Vec<DumpResult>, Box<dyn Error + Send + Sync>> {
+    fn dump(&self, _: DumpItem, _: &mut Assets) -> Result<Vec<DumpResult>, DumpError> {
         panic!("unsupported dump operation")
     }
 }

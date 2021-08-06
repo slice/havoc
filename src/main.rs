@@ -105,7 +105,7 @@ fn dump_items(dumping: &[&str], wrecker: &mut Wrecker) -> Result<()> {
             );
 
             result
-                .dump_to(&dest)
+                .write(&dest)
                 .with_context(|| format!("failed to write {:?} ({}) to disk", dump_item, item))?;
 
             println!(" done");

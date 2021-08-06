@@ -4,6 +4,8 @@ use std::path::Path;
 
 use thiserror::Error;
 
+use crate::scrape::ScrapeError;
+
 /// Something that can potentially be dumped from an artifact.
 ///
 /// Each artifact declares what dump item it supports through
@@ -61,14 +63,27 @@ pub struct DumpResult {
     pub content: String,
 }
 
-/// Errors that can occur while dumping.
+/// Errors that can occur while writing a dump to disk.
 #[derive(Error, Debug)]
-pub enum DumpError {
-    #[error("i/o error")]
+pub enum DumpWriteError {
+    #[error("I/O error")]
     Io(#[from] std::io::Error),
 
     #[error("specified destination was invalid")]
     InvalidDestination,
+}
+
+/// Errors that can occur while dumping from an artifact.
+#[derive(Error, Debug)]
+pub enum DumpError {
+    #[error("failed to scrape")]
+    ScrapeFailed(#[from] ScrapeError),
+
+    #[error("failed to serialize to JSON")]
+    SerializationFailed(#[from] serde_json::Error),
+
+    #[error("failed to parse/traverse JS")]
+    JSParseError(#[from] crate::parse::ParseError),
 }
 
 impl DumpResult {
@@ -89,7 +104,7 @@ impl DumpResult {
         format!("{}.{}", self.name, self.typ.ext())
     }
 
-    pub fn dump_to(&self, destination: &Path) -> Result<(), DumpError> {
+    pub fn write(&self, destination: &Path) -> Result<(), DumpWriteError> {
         std::fs::write(destination, &self.content)?;
         Ok(())
     }

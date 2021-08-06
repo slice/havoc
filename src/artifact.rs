@@ -1,11 +1,10 @@
 //! Something that you can dump from.
 
-use std::error::Error;
 use std::fmt::Display;
 use std::rc::Rc;
 
 use crate::discord::{Assets, FeAsset};
-use crate::dump::{DumpItem, DumpResult};
+use crate::dump::{DumpError, DumpItem, DumpResult};
 
 /// Something that you can dump information from. It is also assumed that
 /// artifacts have some associated [`FeAsset`](crate::discord::FeAsset)s,
@@ -33,11 +32,7 @@ pub trait Artifact: Display {
     }
 
     /// Dumps some data from this artifact.
-    fn dump(
-        &self,
-        item: DumpItem,
-        assets: &mut Assets,
-    ) -> Result<Vec<DumpResult>, Box<dyn Error + Send + Sync>>;
+    fn dump(&self, item: DumpItem, assets: &mut Assets) -> Result<Vec<DumpResult>, DumpError>;
 
     /// Returns the assets associated with this artifact.
     fn assets(&self) -> &[Rc<FeAsset>];
