@@ -83,7 +83,7 @@ pub fn walk_webpack_chunk(script: &ast::Script) -> Result<WebpackChunk, ParseErr
 
         then {
             walk_module_listing(modules_expr, |module_id, func| {
-                let module = WebpackModule { id: module_id, func: &func };
+                let module = WebpackModule { id: module_id, func };
 
                 use swc_common::Spanned;
                 let span = func.span();

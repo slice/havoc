@@ -33,7 +33,7 @@ impl FeBuild {
             "unable to locate classes root script; discord has updated their /channels/@me html",
         );
         let classes_js = assets.content(&classes_asset)?;
-        let script = crate::parse::parse_script(&classes_js)?;
+        let script = crate::parse::parse_script(classes_js)?;
         let mapping = crate::parse::walk_classes_chunk(&script)?;
 
         Ok(mapping)
@@ -57,7 +57,7 @@ impl FeBuild {
         let entrypoint_js = assets.content(&entrypoint_asset)?;
 
         tracing::info!("parsing entrypoint script");
-        let script = crate::parse::parse_script(&entrypoint_js)?;
+        let script = crate::parse::parse_script(entrypoint_js)?;
 
         let chunk = crate::parse::walk_webpack_chunk(&script)?;
 

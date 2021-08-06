@@ -71,7 +71,7 @@ pub fn glean_frontend_build(
     );
     let entrypoint_js = assets.content(&*entrypoint_asset)?;
 
-    let (hash, number) = match_static_build_information(&entrypoint_js)?;
+    let (hash, number) = match_static_build_information(entrypoint_js)?;
 
     Ok(discord::FeBuild {
         manifest: fe_manifest,
@@ -86,7 +86,7 @@ pub fn match_static_build_information(js: &str) -> Result<(String, u32), ScrapeE
         static ref BUILD_INFO_RE: Regex = Regex::new(r#"Build Number: (?P<number>\d+), Version Hash: (?P<hash>[0-9a-f]+)"#).unwrap();
     }
 
-    let caps = BUILD_INFO_RE.captures(&js).ok_or(ScrapeError::AssetError(
+    let caps = BUILD_INFO_RE.captures(js).ok_or(ScrapeError::AssetError(
         "failed to match static build information from main js bundle",
     ))?;
 
@@ -114,7 +114,7 @@ pub fn extract_assets_from_tags(page_content: &str) -> Vec<discord::FeAsset> {
 
     let collect_assets = |regex: &Regex, typ: discord::FeAssetType| {
         regex
-            .captures_iter(&page_content)
+            .captures_iter(page_content)
             .map(|caps| discord::FeAsset {
                 name: caps["name"].to_owned(),
                 typ,

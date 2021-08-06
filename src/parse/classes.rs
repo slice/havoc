@@ -27,14 +27,14 @@ impl Visit for ClassMappingVisitor {
     fn visit_key_value_prop(&mut self, n: &ast::KeyValueProp, _parent: &dyn swc_ecma_visit::Node) {
         let key: &str = match &n.key {
             // { a: ... }
-            ast::PropName::Ident(ast::Ident { sym: atom, .. }) => &atom,
+            ast::PropName::Ident(ast::Ident { sym: atom, .. }) => atom,
             // { "some key": ... }
-            ast::PropName::Str(ast::Str { value: atom, .. }) => &atom,
+            ast::PropName::Str(ast::Str { value: atom, .. }) => atom,
             _ => return,
         };
 
         let value: &str = match &*n.value {
-            ast::Expr::Lit(ast::Lit::Str(ast::Str { value: atom, .. })) => &atom,
+            ast::Expr::Lit(ast::Lit::Str(ast::Str { value: atom, .. })) => atom,
             _ => return,
         };
 
