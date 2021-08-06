@@ -82,3 +82,9 @@ impl Assets {
             .cloned()
     }
 }
+
+impl Default for Assets {
+    fn default() -> Self {
+        Self::new()
+    }
+}
