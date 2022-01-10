@@ -72,7 +72,6 @@ impl FeBuild {
             .modules
             .iter()
             .map(|(module_id, module)| {
-                use swc_common::Spanned;
                 let span = module.func.span();
 
                 let lo = span.lo.0 as usize;

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::convert::{TryFrom, TryInto};
 
 use serde::Serialize;
 extern crate swc_ecma_ast as ast;
@@ -28,6 +29,39 @@ pub struct WebpackChunk<'a> {
     pub entrypoints: Vec<ChunkId>,
 }
 
+/// A function-like AST node.
+///
+/// This is needed because functions and arrow expressions have distinct
+/// representations under swt's model of the ECMAScript AST.
+#[derive(Debug, Serialize)]
+pub enum FunctionLike<'a> {
+    Function(&'a ast::Function),
+    Arrow(&'a ast::ArrowExpr),
+}
+
+impl FunctionLike<'_> {
+    /// Returns the span for this function-like AST node.
+    pub fn span(&self) -> swc_common::Span {
+        match self {
+            FunctionLike::Function(function) => function.span,
+            FunctionLike::Arrow(arrow_expr) => arrow_expr.span,
+        }
+    }
+}
+
+/// A fallible conversion from an AST expression into a `FunctionLike`.
+impl<'a> TryFrom<&'a ast::Expr> for FunctionLike<'a> {
+    type Error = ();
+
+    fn try_from(expr: &'a ast::Expr) -> Result<Self, Self::Error> {
+        match expr {
+            ast::Expr::Fn(ast::FnExpr { function, .. }) => Ok(FunctionLike::Function(function)),
+            ast::Expr::Arrow(arrow_expr) => Ok(FunctionLike::Arrow(arrow_expr)),
+            _ => Err(()),
+        }
+    }
+}
+
 /// A webpack module.
 #[derive(Serialize)]
 pub struct WebpackModule<'a> {
@@ -35,7 +69,7 @@ pub struct WebpackModule<'a> {
     pub id: ChunkId,
 
     /// The module's function.
-    pub func: &'a ast::Function,
+    pub func: FunctionLike<'a>,
 }
 
 /// Walks a generic Webpack chunk that contains modules.
@@ -70,10 +104,15 @@ pub fn walk_webpack_chunk(script: &ast::Script) -> Result<WebpackChunk, ParseErr
     };
 
     if_chain::if_chain! {
+        // the first expression is the webpackJsonp.push call
         if let ast::Stmt::Expr(ast::ExprStmt { expr: boxed_expr, .. }) = body;
         if let ast::Expr::Call(ast::CallExpr { args: call_args, .. }) = &**boxed_expr;
+
+        // the first argument is an array
         if let [ast::ExprOrSpread { expr: boxed_array_expr, .. }, ..] = call_args.as_slice();
         if let ast::Expr::Array(array_lit) = &**boxed_array_expr;
+
+        // the elements of the array
         if let [chunk_ids_eos, modules_eos, ..] = array_lit.elems.as_slice();
         if let (
             Some(ast::ExprOrSpread { expr: _boxed_chunk_ids_expr, .. }),
@@ -82,15 +121,12 @@ pub fn walk_webpack_chunk(script: &ast::Script) -> Result<WebpackChunk, ParseErr
         let modules_expr = &*boxed_modules_expr;
 
         then {
-            walk_module_listing(modules_expr, |module_id, func| {
-                let module = WebpackModule { id: module_id, func };
-
-                use swc_common::Spanned;
+            for (module_id, func) in walk_module_listing(modules_expr) {
                 let span = func.span();
+                let module = WebpackModule { id: module_id, func };
                 tracing::trace!("found module {} (span: {} to {}, len: {})", module_id, span.lo.0, span.hi.0, span.hi.0 - span.lo.0);
-
                 webpack_chunk.modules.insert(module_id, module);
-            });
+            }
 
             tracing::info!("walked {} modules", webpack_chunk.modules.len());
         } else {
@@ -110,34 +146,53 @@ pub fn walk_webpack_chunk(script: &ast::Script) -> Result<WebpackChunk, ParseErr
     Ok(webpack_chunk)
 }
 
-/// Walks a module listing. It can either be an array (with indexes as the
-/// IDs), or an object (where the keys are the IDs).
+/// Walks a module listing expression.
+///
+/// The expression can either be an array or an object. If it is neither, then
+/// this function panics. Modules' identifiers come from their array indices
+/// or their object keys.
 fn walk_module_listing<'script>(
     modules: &'script ast::Expr,
-    mut callback: impl FnMut(ModuleId, &'script ast::Function),
-) {
+) -> Box<dyn Iterator<Item = (ModuleId, FunctionLike<'script>)> + 'script> {
     match modules {
         ast::Expr::Array(ast::ArrayLit { elems, .. }) => {
-            for (module_id, optional_expr_or_spread) in elems.iter().enumerate() {
-                if let Some(ast::ExprOrSpread {
-                    expr: boxed_expr, ..
-                }) = optional_expr_or_spread
-                {
-                    if let ast::Expr::Fn(ast::FnExpr { function, .. }) = &**boxed_expr {
-                        use std::convert::TryInto;
-                        callback(
-                            module_id
-                                .try_into()
-                                .expect("module ID couldn't fit into u32"),
-                            function,
-                        );
+            Box::new(elems.iter().enumerate().filter_map(|(module_id, optional_expr_or_spread)| {
+                if_chain::if_chain! {
+                    if let Some(ast::ExprOrSpread { expr: boxed_expr, .. }) = optional_expr_or_spread;
+                    if let Ok(function_like) = (&**boxed_expr).try_into();
+
+                    then {
+                        let module_id: u32 = module_id.try_into().expect("module ID couldn't fit into u32");
+                        Some((module_id, function_like))
+                    } else {
+                        None
                     }
                 }
-            }
+            }))
         }
-        ast::Expr::Object(ast::ObjectLit { props: _props, .. }) => {
-            todo!("walking object module listing");
+        ast::Expr::Object(ast::ObjectLit { props, .. }) => {
+            Box::new(props.iter().filter_map(|prop_or_spread| {
+              if_chain::if_chain! {
+                    if let ast::PropOrSpread::Prop(boxed_prop) = prop_or_spread;
+                    if let ast::Prop::KeyValue(ast::KeyValueProp { key, value: boxed_value }) = &**boxed_prop;
+                    if let Ok(function_like) = (&**boxed_value).try_into();
+
+                    then {
+                        match key {
+                            ast::PropName::Num(ast::Number { value: key_floating_point, .. }) =>  {
+                                let module_id: u32 = *key_floating_point as u32;
+                                Some((module_id, function_like))
+                            }
+                            _ => panic!("key in object module listing wasn't a number")
+                        }
+                    } else {
+                        None
+                    }
+                }
+            }))
         }
-        _ => {}
+        _ => {
+            panic!("unexpected module listing representation: wasn't an array nor an object")
+        }
     }
 }
