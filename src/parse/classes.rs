@@ -24,7 +24,7 @@ struct ClassMappingVisitor {
 // inner by `ClassesClassMappingVisitor`.
 
 impl Visit for ClassMappingVisitor {
-    fn visit_key_value_prop(&mut self, n: &ast::KeyValueProp, _parent: &dyn swc_ecma_visit::Node) {
+    fn visit_key_value_prop(&mut self, n: &ast::KeyValueProp) {
         let key: &str = match &n.key {
             // { a: ... }
             ast::PropName::Ident(ast::Ident { sym: atom, .. }) => atom,
@@ -47,7 +47,7 @@ struct ClassModuleVisitor {
 }
 
 impl Visit for ClassModuleVisitor {
-    fn visit_key_value_prop(&mut self, n: &ast::KeyValueProp, _parent: &dyn swc_ecma_visit::Node) {
+    fn visit_key_value_prop(&mut self, n: &ast::KeyValueProp) {
         let module_id = match &n.key {
             // wow, i sure do hope webpack doesn't start using floating-point
             // numbers for module ids
