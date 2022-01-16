@@ -1,9 +1,10 @@
 use anyhow::{anyhow, Context, Result};
 use clap::{Arg, SubCommand};
 
+use havoc::artifact::Artifact;
+use havoc::discord::Assets;
 use havoc::dump::DumpItem;
 use havoc::scrape;
-use havoc::wrecker::Wrecker;
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
@@ -47,14 +48,18 @@ fn main() -> Result<()> {
         };
 
         let scrape::Target::Frontend(branch) = target;
-        let mut wrecker = Wrecker::scrape_fe_build(branch)?;
 
-        println!("scraped: {}", wrecker.artifact);
+        let manifest =
+            scrape::scrape_fe_manifest(branch).context("failed to scrape frontend manifest")?;
+        let mut assets = havoc::discord::Assets::with_assets(manifest.assets.clone());
+        let mut build = crate::scrape::scrape_fe_build(manifest, &mut assets)
+            .context("failed to scrape frontend build")?;
 
-        let assets = wrecker.artifact.assets();
-        println!("assets ({}):", assets.len());
+        println!("scraped: {}", build);
 
-        for asset in wrecker.artifact.assets() {
+        println!("assets ({}):", assets.assets.len());
+
+        for asset in &assets.assets {
             println!("\t{}.{} ({:?})", asset.name, asset.typ.ext(), asset.typ);
         }
 
@@ -62,14 +67,14 @@ fn main() -> Result<()> {
             .values_of("dump")
             .map(|values| values.collect::<Vec<_>>())
         {
-            dump_items(&dumping, &mut wrecker)?;
+            dump_items(&dumping, &mut build, &mut assets)?;
         }
     }
 
     Ok(())
 }
 
-fn dump_items(dumping: &[&str], wrecker: &mut Wrecker) -> Result<()> {
+fn dump_items(dumping: &[&str], artifact: &mut dyn Artifact, assets: &mut Assets) -> Result<()> {
     let cwd = std::env::current_dir().context("failed to obtain current working dir")?;
 
     for item in dumping {
@@ -78,14 +83,17 @@ fn dump_items(dumping: &[&str], wrecker: &mut Wrecker) -> Result<()> {
             .map_err(|_| anyhow!("`{}` is not a valid dump item", item))
             .context("invalid dump item")?;
 
-        if !wrecker.artifact.supports_dump_item(dump_item) {
+        if !artifact.supports_dump_item(dump_item) {
             return Err(anyhow!("unsupported dump item for this artifact"));
         }
 
         print!("dumping item \"{}\" ...", item);
 
-        let dump_results = wrecker
-            .dump(dump_item)
+        let dump_span = tracing::info_span!("dumping", ?dump_item);
+        let _span = dump_span.enter();
+
+        let dump_results = artifact
+            .dump(dump_item, assets)
             .with_context(|| format!("failed to dump {:?} ({})", dump_item, item))?;
 
         println!(" {} result(s)", dump_results.len());
@@ -93,7 +101,7 @@ fn dump_items(dumping: &[&str], wrecker: &mut Wrecker) -> Result<()> {
         for result in &dump_results {
             let filename = result.filename();
 
-            let full_filename = format!("havoc_{}_{}", wrecker.artifact.dump_prefix(), filename);
+            let full_filename = format!("havoc_{}_{}", artifact.dump_prefix(), filename);
             let dest = cwd.join(full_filename.clone());
 
             print!(
