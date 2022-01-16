@@ -1,51 +1,49 @@
 use anyhow::{anyhow, Context, Result};
-use clap::{Arg, SubCommand};
+use clap::{App, AppSettings, Arg};
 
 use havoc::artifact::Artifact;
 use havoc::discord::Assets;
 use havoc::dump::DumpItem;
 use havoc::scrape;
 
-fn main() -> Result<()> {
-    tracing_subscriber::fmt::init();
-
-    let matches = clap::App::new("havoc")
-        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
+fn app() -> App<'static> {
+    App::new("havoc")
+        .global_setting(AppSettings::PropagateVersion)
+        .setting(AppSettings::SubcommandRequiredElseHelp)
         .version("0.1.0")
         .author("slice <tinyslices@gmail.com>")
         .about("discord client scraping and processing toolkit")
         .subcommand(
-            SubCommand::with_name("scrape")
-                .about("Scrape a single target, once")
+            App::new("scrape")
+                .about("Scrape a target")
                 .arg(
-                    Arg::with_name("TARGET")
+                    Arg::new("TARGET")
                         .required(true)
                         .help("the target to scrape")
                         .takes_value(true)
                         .index(1),
                 )
                 .arg(
-                    Arg::with_name("dump")
+                    Arg::new("dump")
                         .long("dump")
-                        .short("d")
-                        .multiple(true)
+                        .short('d')
+                        .multiple_occurrences(true)
                         .help("build items to dump")
                         .takes_value(true),
                 ),
         )
-        .get_matches();
+}
+
+fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
+
+    let app = app();
+    let matches = app.get_matches();
 
     if let Some(matches) = matches.subcommand_matches("scrape") {
-        let target_str = matches.value_of("TARGET").unwrap();
-
-        let target = match target_str.parse::<scrape::Target>() {
-            Ok(target) => target,
-            Err(err) => {
-                let clap_err =
-                    clap::Error::value_validation_auto(format!("Invalid scrape target: {}", err));
-                clap_err.exit();
-            }
-        };
+        let target: scrape::Target = matches
+            .value_of_t("TARGET")
+            .unwrap_or_else(|err| err.exit());
 
         let scrape::Target::Frontend(branch) = target;
 
