@@ -9,10 +9,12 @@ use serde::Serialize;
 
 /// A frontend manifest.
 ///
-/// The term "manifest" refers to a surface-level representation of a build
-/// which only contains minimal information. Further details can be gathered
-/// using the data within this structure. For more information,
-/// see [`crate::discord::FeBuild`].
+/// A manifest is a surface-level representation of a Discord client build
+/// which contains only minimal information; namely, the branch the build
+/// is associated with, and the client page's assets.
+///
+/// [`FeBuild`](crate::discord::FeBuild)s contain a superset of this
+/// information.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct FeManifest {
     pub branch: Branch,

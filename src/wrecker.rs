@@ -26,8 +26,8 @@ impl Wrecker {
 
         let mut assets = Assets::with_assets(manifest.assets.clone());
 
-        let build = crate::scrape::glean_frontend_build(manifest, &mut assets)
-            .context("failed to glean frontend build")?;
+        let build = crate::scrape::scrape_fe_build(manifest, &mut assets)
+            .context("failed to scrape frontend build")?;
 
         Ok(Wrecker {
             artifact: Box::new(build),

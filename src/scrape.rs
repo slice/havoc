@@ -27,7 +27,7 @@ pub(crate) fn get_text(url: Url) -> Result<String, ScrapeError> {
     response.text().map_err(ScrapeError::DecodingError)
 }
 
-/// Scrapes a `[discord::FeManifest]`.
+/// Scrapes a [`discord::FeManifest`] for a specific [`discord::Branch`].
 pub fn scrape_fe_manifest(branch: discord::Branch) -> Result<discord::FeManifest, ScrapeError> {
     let html = fetch_branch_page(branch)?;
     let assets = extract_assets_from_tags(&html);
@@ -59,8 +59,10 @@ pub fn scrape_fe_manifest(branch: discord::Branch) -> Result<discord::FeManifest
     })
 }
 
-/// Gleans a [`discord::FeBuild`] from a [`discord::FeManifest`].
-pub fn glean_frontend_build(
+/// Scrapes a [`discord::FeBuild`] from a [`discord::FeManifest`].
+///
+/// Builds contain a superset of the information encapsulated within manifests.
+pub fn scrape_fe_build(
     fe_manifest: discord::FeManifest,
     assets: &mut Assets,
 ) -> Result<discord::FeBuild, ScrapeError> {
