@@ -11,20 +11,23 @@ use crate::discord::{self, Assets, RootScript};
 #[derive(Error, Debug)]
 pub enum ScrapeError {
     #[error("http client error")]
-    HttpError(#[from] isahc::error::Error),
+    Http(#[from] isahc::error::Error),
 
     #[error("encountered malformed utf-8 string")]
-    DecodingError(#[source] io::Error),
+    DecodingHttpResponse(#[source] io::Error),
 
-    #[error("asset error: {0}")]
-    AssetError(&'static str),
+    #[error("branch page is missing assets: {0}")]
+    MissingBranchPageAssets(&'static str),
+
+    #[error("cannot find static build information in entrypoint script")]
+    MissingBuildInformation,
 }
 
 pub(crate) fn get_text(url: Url) -> Result<String, ScrapeError> {
     tracing::info!("GET {}", url.as_str());
     // TODO: use custom headers here
     let mut response = isahc::get(url.as_str())?;
-    response.text().map_err(ScrapeError::DecodingError)
+    response.text().map_err(ScrapeError::DecodingHttpResponse)
 }
 
 /// Scrapes a [`discord::FeManifest`] for a specific [`discord::Branch`].
@@ -32,24 +35,23 @@ pub fn scrape_fe_manifest(branch: discord::Branch) -> Result<discord::FeManifest
     let html = fetch_branch_page(branch)?;
     let assets = extract_assets_from_tags(&html);
 
+    use ScrapeError::MissingBranchPageAssets;
+
     if assets.is_empty() {
-        return Err(ScrapeError::AssetError("no assets were found"));
+        return Err(MissingBranchPageAssets("no assets were found whatsoever"));
     }
 
     let count_assets_of_type = |typ| assets.iter().filter(|asset| asset.typ == typ).count();
 
-    // Enforce some useful variants.
-    if assets.is_empty() {
-        return Err(ScrapeError::AssetError("failed to scrape any assets"));
-    }
+    // Enforce some useful invariants.
     if count_assets_of_type(discord::FeAssetType::Js) < 1 {
-        return Err(ScrapeError::AssetError(
-            "failed to scrape at least 1 js asset",
+        return Err(MissingBranchPageAssets(
+            "couldn't find at least one script"
         ));
     }
     if count_assets_of_type(discord::FeAssetType::Css) < 1 {
-        return Err(ScrapeError::AssetError(
-            "failed to scrape at least 1 css asset",
+        return Err(MissingBranchPageAssets(
+            "couldn't find at least one stylesheet",
         ));
     }
 
@@ -88,9 +90,7 @@ pub fn match_static_build_information(js: &str) -> Result<(String, u32), ScrapeE
         static ref BUILD_INFO_RE: Regex = Regex::new(r#"Build Number: (?P<number>\d+), Version Hash: (?P<hash>[0-9a-f]+)"#).unwrap();
     }
 
-    let caps = BUILD_INFO_RE.captures(js).ok_or(ScrapeError::AssetError(
-        "failed to match static build information from main js bundle",
-    ))?;
+    let caps = BUILD_INFO_RE.captures(js).ok_or(ScrapeError::MissingBuildInformation)?;
 
     Ok((caps["hash"].to_owned(), caps["number"].parse().unwrap()))
 }

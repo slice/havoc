@@ -30,12 +30,11 @@ impl FeBuild {
         &self,
         assets: &mut Assets,
     ) -> Result<crate::parse::ClassModuleMap, DumpError> {
-        let classes_asset =
-            assets
-                .find_root_script(RootScript::Classes)
-                .ok_or(ScrapeError::AssetError(
-                    "failed to locate root classes script; discord has updated their /channels/@me",
-                ))?;
+        let classes_asset = assets.find_root_script(RootScript::Classes).ok_or(
+            ScrapeError::MissingBranchPageAssets(
+                "failed to locate root classes script; discord has updated their /channels/@me",
+            ),
+        )?;
         let classes_js = assets.content(&classes_asset)?;
         let script = crate::parse::parse_script(classes_js)?;
         let mapping = crate::parse::walk_classes_chunk(&script)?;
@@ -58,7 +57,7 @@ impl FeBuild {
         let entrypoint_asset =
             assets
                 .find_root_script(RootScript::Entrypoint)
-                .ok_or(ScrapeError::AssetError(
+                .ok_or(ScrapeError::MissingBranchPageAssets(
                 "failed to locate root entrypoint script; discord has updated their /channels/@me",
             ))?;
         let entrypoint_js = assets.content(&entrypoint_asset)?;
