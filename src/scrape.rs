@@ -10,10 +10,10 @@ use crate::discord::{self, Assets, RootScript};
 
 #[derive(Error, Debug)]
 pub enum ScrapeError {
-    #[error("http client error")]
+    #[error("http error")]
     Http(#[from] isahc::error::Error),
 
-    #[error("encountered malformed utf-8 string")]
+    #[error("cannot decode malformed utf-8 in http response")]
     DecodingHttpResponse(#[source] io::Error),
 
     #[error("branch page is missing assets: {0}")]
@@ -45,9 +45,7 @@ pub fn scrape_fe_manifest(branch: discord::Branch) -> Result<discord::FeManifest
 
     // Enforce some useful invariants.
     if count_assets_of_type(discord::FeAssetType::Js) < 1 {
-        return Err(MissingBranchPageAssets(
-            "couldn't find at least one script"
-        ));
+        return Err(MissingBranchPageAssets("couldn't find at least one script"));
     }
     if count_assets_of_type(discord::FeAssetType::Css) < 1 {
         return Err(MissingBranchPageAssets(
@@ -90,7 +88,9 @@ pub fn match_static_build_information(js: &str) -> Result<(String, u32), ScrapeE
         static ref BUILD_INFO_RE: Regex = Regex::new(r#"Build Number: (?P<number>\d+), Version Hash: (?P<hash>[0-9a-f]+)"#).unwrap();
     }
 
-    let caps = BUILD_INFO_RE.captures(js).ok_or(ScrapeError::MissingBuildInformation)?;
+    let caps = BUILD_INFO_RE
+        .captures(js)
+        .ok_or(ScrapeError::MissingBuildInformation)?;
 
     Ok((caps["hash"].to_owned(), caps["number"].parse().unwrap()))
 }
