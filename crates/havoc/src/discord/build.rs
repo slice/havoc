@@ -35,7 +35,8 @@ impl FeBuild {
                 "failed to locate root classes script; discord has updated their /channels/@me",
             ),
         )?;
-        let classes_js = assets.content(&classes_asset)?;
+        let classes_js =
+            std::str::from_utf8(assets.content(&classes_asset)?).map_err(ScrapeError::Decoding)?;
         let script = crate::parse::parse_script(classes_js)?;
         let mapping = crate::parse::walk_classes_chunk(&script)?;
 
@@ -60,7 +61,8 @@ impl FeBuild {
                 .ok_or(ScrapeError::MissingBranchPageAssets(
                 "failed to locate root entrypoint script; discord has updated their /channels/@me",
             ))?;
-        let entrypoint_js = assets.content(&entrypoint_asset)?;
+        let entrypoint_js = std::str::from_utf8(assets.content(&entrypoint_asset)?)
+            .map_err(ScrapeError::Decoding)?;
 
         tracing::info!("parsing entrypoint script");
         let script = crate::parse::parse_script(entrypoint_js)?;

@@ -42,7 +42,7 @@ impl RootScript {
 /// Encapsulates assets and their scraped content.
 pub struct Assets {
     pub assets: Vec<Rc<FeAsset>>,
-    content: HashMap<String, String>,
+    content: HashMap<String, Vec<u8>>,
 }
 
 impl Assets {
@@ -61,12 +61,12 @@ impl Assets {
     }
 
     /// Returns the content of an asset, fetching it if necessary.
-    pub fn content(&mut self, asset: &FeAsset) -> Result<&str, ScrapeError> {
+    pub fn content(&mut self, asset: &FeAsset) -> Result<&[u8], ScrapeError> {
         match self.content.entry(asset.name.clone()) {
             Entry::Occupied(entry) => Ok(entry.into_mut()),
             Entry::Vacant(entry) => {
                 tracing::info!(asset = ?asset, "content requested for unfetched asset, fetching...");
-                let content = crate::scrape::get_text(asset.url())?;
+                let content = crate::scrape::fetch_url_content(asset.url())?;
                 Ok(entry.insert(content))
             }
         }

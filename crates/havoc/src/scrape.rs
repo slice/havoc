@@ -1,7 +1,7 @@
-use std::io;
+use std::io::{self, Read};
 use std::rc::Rc;
+use std::str::Utf8Error;
 
-use isahc::prelude::*;
 use regex::Regex;
 use thiserror::Error;
 use url::Url;
@@ -13,8 +13,11 @@ pub enum ScrapeError {
     #[error("http error")]
     Http(#[from] isahc::error::Error),
 
-    #[error("cannot decode malformed utf-8 in http response")]
-    DecodingHttpResponse(#[source] io::Error),
+    #[error("malformed utf-8")]
+    Decoding(#[source] Utf8Error),
+
+    #[error("failed to read http response")]
+    ReadingHttpResponse(io::Error),
 
     #[error("branch page is missing assets: {0}")]
     MissingBranchPageAssets(&'static str),
@@ -23,11 +26,19 @@ pub enum ScrapeError {
     MissingBuildInformation,
 }
 
-pub(crate) fn get_text(url: Url) -> Result<String, ScrapeError> {
+pub(crate) fn fetch_url_content(url: Url) -> Result<Vec<u8>, ScrapeError> {
     tracing::info!("GET {}", url.as_str());
+
     // TODO: use custom headers here
     let mut response = isahc::get(url.as_str())?;
-    response.text().map_err(ScrapeError::DecodingHttpResponse)
+
+    let mut body = Vec::new();
+    response
+        .body_mut()
+        .read_to_end(&mut body)
+        .map_err(ScrapeError::ReadingHttpResponse)?;
+
+    Ok(body)
 }
 
 /// Scrapes a [`discord::FeManifest`] for a specific [`discord::Branch`].
@@ -71,7 +82,9 @@ pub fn scrape_fe_build(
     let entrypoint_asset = assets.find_root_script(RootScript::Entrypoint).expect(
         "unable to locate entrypoint root script; discord has updated their /channels/@me html",
     );
-    let entrypoint_js = assets.content(&*entrypoint_asset)?;
+
+    let entrypoint_js =
+        std::str::from_utf8(assets.content(&*entrypoint_asset)?).map_err(ScrapeError::Decoding)?;
 
     let (hash, number) = match_static_build_information(entrypoint_js)?;
 
@@ -100,7 +113,9 @@ pub fn match_static_build_information(js: &str) -> Result<(String, u32), ScrapeE
 /// This uses the default Isahc client.
 pub fn fetch_branch_page(branch: discord::Branch) -> Result<String, ScrapeError> {
     let url = branch.base().join("channels/@me").unwrap();
-    get_text(url)
+
+    String::from_utf8(fetch_url_content(url)?)
+        .map_err(|err| ScrapeError::Decoding(err.utf8_error()))
 }
 
 /// Extracts [`discord::FeAsset`]s from `<script>` and `<link>` tags on an HTML
