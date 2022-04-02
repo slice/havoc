@@ -16,10 +16,11 @@
           naersk-lib = naersk.lib."${system}";
           naerskBuildPackage = args:
             naersk-lib.buildPackage (args // {
-              nativeBuildInputs = nixpkgs.lib.optional pkgs.stdenv.isDarwin [
-                # needed by curl-sys on darwin
-                pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
-              ];
+              nativeBuildInputs = [ pkgs.pkg-config pkgs.openssl ]
+                ++ nixpkgs.lib.optional pkgs.stdenv.isDarwin [
+                  # needed by curl-sys on darwin
+                  pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
+                ];
             });
           mkPackage = n:
             naerskBuildPackage {
