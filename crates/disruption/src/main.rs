@@ -53,6 +53,9 @@ fn run(config: Config) -> Result<()> {
 
     loop {
         for (&branch, subscriptions) in &branches {
+            let scrape_span = tracing::info_span!("scrape", ?branch);
+            let _enter = scrape_span.enter();
+
             let build = match scrape::scrape_fe_manifest(branch).and_then(|manifest| {
                 let mut assets = Assets::with_assets(manifest.assets.clone());
                 scrape::scrape_fe_build(manifest, &mut assets)
