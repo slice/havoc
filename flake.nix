@@ -83,6 +83,7 @@
 
           config.systemd = mkIf cfg.enable {
             services.disruption = rec {
+              environment = { RUST_LOG = "warn,havoc=debug,disruption=debug"; };
               serviceConfig = {
                 User = "disruption";
                 Group = "disruption";
