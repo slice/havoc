@@ -40,7 +40,7 @@
         with lib;
         let
           cfg = config.services.disruption;
-          pkg = self.apps.${pkgs.system};
+          pkg = self.apps.${pkgs.system}.disruption;
           tomlConfigPath = (pkgs.formats.toml { }).generate "config.toml" ({
             interval_milliseconds = cfg.intervalMs;
             state_file_path = "/var/lib/disruption/state.json";
