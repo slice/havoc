@@ -1,4 +1,7 @@
 /target
 
+/disruption.toml
+/config.toml
+/state.json
 /havoc_*.json
 /*.js
