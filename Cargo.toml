@@ -1,5 +1,6 @@
 [workspace]
 
 members = [
-  "crates/havoc"
+  "crates/havoc",
+  "crates/disruption"
 ]

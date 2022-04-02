@@ -1,0 +1,20 @@
+[package]
+name = "disruption"
+version = "0.1.0"
+authors = ["slice <tinyslices@gmail.com>"]
+edition = "2021"
+
+[[bin]]
+name = "disruption"
+
+[dependencies]
+anyhow = "1.0.55"
+tracing = "0.1.31"
+tracing-subscriber = "0.2.12"
+havoc = { path = "../havoc" }
+isahc = "1.6"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = "0.4"
+chrono-tz = "0.6"
+toml = "0.5"
