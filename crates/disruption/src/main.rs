@@ -1,6 +1,7 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::io::Read;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use anyhow::{Context, Result};
@@ -13,6 +14,7 @@ use serde::Deserialize;
 #[derive(Deserialize)]
 struct Config {
     interval_milliseconds: u64,
+    state_file_path: PathBuf,
     subscriptions: Vec<Subscription>,
 }
 
@@ -22,9 +24,19 @@ struct Subscription {
     discord_webhook_url: String,
 }
 
+type State = HashMap<Branch, u32>;
+
 fn run(config: Config) -> Result<()> {
     // Tracks the last known build numbers for each branch.
-    let mut state: HashMap<Branch, u32> = HashMap::new();
+    let mut state: State = HashMap::new();
+
+    if let Ok(state_file_text) = std::fs::read_to_string(&config.state_file_path) {
+        tracing::info!(path = ?config.state_file_path, "using state file");
+        state = serde_json::from_str(&state_file_text).context("failed to decode state file")?;
+        tracing::info!(?state, "loaded state");
+    } else {
+        tracing::info!("cannot load state file, beginning with empty state");
+    }
 
     // Go from [subscription] to {branch: [subscription]}.
     let mut branches: HashMap<Branch, Vec<&Subscription>> = HashMap::new();
@@ -70,7 +82,11 @@ fn run(config: Config) -> Result<()> {
                         build.number,
                     );
                     state.insert(branch, build.number);
-                    publish()?;
+                    publish().context("failed to publish")?;
+
+                    tracing::debug!(path = ?config.state_file_path, "writing to state file");
+                    std::fs::write(&config.state_file_path, serde_json::to_string(&state)?)
+                        .context("failed to write to state file")?;
                 }
             }
         }
