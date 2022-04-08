@@ -138,7 +138,7 @@ fn publish_new_build(build: &discord::FeBuild, subscription: &Subscription) -> R
 
     let utc_timestamp = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
     let pacific_time = Utc::now()
-        .with_timezone(&chrono_tz::US::Pacific)
+        .with_timezone(&chrono_tz::America::Los_Angeles)
         .format("%b %-d, %-H:%M (%a)");
 
     let embed = json!({
