@@ -99,10 +99,14 @@ pub fn scrape_fe_build(
 pub fn match_static_build_information(js: &str) -> Result<(String, u32), ScrapeError> {
     lazy_static::lazy_static! {
         static ref BUILD_INFO_RE: Regex = Regex::new(r#"Build Number: (?P<number>\d+), Version Hash: (?P<hash>[0-9a-f]+)"#).unwrap();
+        static ref BUILD_INFO_SWC_RE: Regex = Regex::new(
+            r#"Build Number: "\).concat\("(?P<number>\d+)",", Version Hash: "\).concat\("(?P<hash>[0-9a-f]+)"\)"#
+        ).unwrap();
     }
 
-    let caps = BUILD_INFO_RE
+    let caps = BUILD_INFO_SWC_RE
         .captures(js)
+        .or_else(|| BUILD_INFO_RE.captures(js))
         .ok_or(ScrapeError::MissingBuildInformation)?;
 
     Ok((caps["hash"].to_owned(), caps["number"].parse().unwrap()))
