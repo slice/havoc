@@ -1,7 +1,8 @@
 //! Something that you can dump from.
 
 use std::fmt::Display;
-use std::rc::Rc;
+
+use async_trait::async_trait;
 
 use crate::discord::{Assets, FeAsset};
 use crate::dump::{DumpError, DumpItem, DumpResult};
@@ -19,6 +20,7 @@ use crate::dump::{DumpError, DumpItem, DumpResult};
 /// Check whether a dump item is supported with
 /// [`supports_dump_item`](Artifact::supports_dump_item), and
 /// dump that item with the [`dump`](Artifact::dump) method.
+#[async_trait]
 pub trait Artifact: Display {
     /// Returns whether a particular dump item is supported or not.
     fn supports_dump_item(&self, _item: DumpItem) -> bool {
@@ -32,8 +34,9 @@ pub trait Artifact: Display {
     }
 
     /// Dumps some data from this artifact.
-    fn dump(&self, item: DumpItem, assets: &mut Assets) -> Result<Vec<DumpResult>, DumpError>;
+    async fn dump(&self, item: DumpItem, assets: &mut Assets)
+        -> Result<Vec<DumpResult>, DumpError>;
 
     /// Returns the assets associated with this artifact.
-    fn assets(&self) -> &[Rc<FeAsset>];
+    fn assets(&self) -> &[FeAsset];
 }

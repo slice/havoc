@@ -1,6 +1,5 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use crate::discord::{FeAsset, FeAssetType};
 use crate::scrape::ScrapeError;
@@ -39,13 +38,14 @@ impl RootScript {
     }
 }
 
-/// Encapsulates assets and their scraped content.
+/// A collection of assets and their scraped content.
 pub struct Assets {
-    pub assets: Vec<Rc<FeAsset>>,
+    pub assets: Vec<FeAsset>,
     content: HashMap<String, Vec<u8>>,
 }
 
 impl Assets {
+    /// Creates an empty asset collection.
     pub fn new() -> Self {
         Self {
             assets: Vec::new(),
@@ -53,7 +53,8 @@ impl Assets {
         }
     }
 
-    pub fn with_assets(assets: Vec<Rc<FeAsset>>) -> Self {
+    /// Creates a collection from a [`Vec`] of [`FeAsset`]s with an empty content map.
+    pub fn with_assets(assets: Vec<FeAsset>) -> Self {
         Self {
             assets,
             content: HashMap::new(),
@@ -61,19 +62,19 @@ impl Assets {
     }
 
     /// Returns the content of an asset, fetching it if necessary.
-    pub fn content(&mut self, asset: &FeAsset) -> Result<&[u8], ScrapeError> {
+    pub async fn content(&mut self, asset: &FeAsset) -> Result<&[u8], ScrapeError> {
         match self.content.entry(asset.name.clone()) {
             Entry::Occupied(entry) => Ok(entry.into_mut()),
             Entry::Vacant(entry) => {
                 tracing::info!(asset = ?asset, "content requested for unfetched asset, fetching...");
-                let content = crate::scrape::fetch_url_content(asset.url())?;
+                let content = crate::scrape::fetch_url_content(asset.url()).await?;
                 Ok(entry.insert(content))
             }
         }
     }
 
     /// Attempts to locate a root script of a certain type.
-    pub fn find_root_script(&self, root_script_type: RootScript) -> Option<Rc<FeAsset>> {
+    pub fn find_root_script(&self, root_script_type: RootScript) -> Option<FeAsset> {
         self.assets
             .iter()
             .filter(|asset| asset.typ == FeAssetType::Js)

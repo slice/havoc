@@ -1,7 +1,7 @@
-use std::io::{self, Read};
-use std::rc::Rc;
+use std::io;
 use std::str::Utf8Error;
 
+use isahc::AsyncReadResponseExt;
 use regex::Regex;
 use thiserror::Error;
 use url::Url;
@@ -26,24 +26,22 @@ pub enum ScrapeError {
     MissingBuildInformation,
 }
 
-pub(crate) fn fetch_url_content(url: Url) -> Result<Vec<u8>, ScrapeError> {
+pub(crate) async fn fetch_url_content(url: Url) -> Result<Vec<u8>, ScrapeError> {
     tracing::info!("GET {}", url.as_str());
 
     // TODO: use custom headers here
-    let mut response = isahc::get(url.as_str())?;
-
-    let mut body = Vec::new();
-    response
-        .body_mut()
-        .read_to_end(&mut body)
-        .map_err(ScrapeError::ReadingHttpResponse)?;
-
-    Ok(body)
+    let mut response = isahc::get_async(url.as_str()).await?;
+    return response
+        .bytes()
+        .await
+        .map_err(ScrapeError::ReadingHttpResponse);
 }
 
 /// Scrapes a [`discord::FeManifest`] for a specific [`discord::Branch`].
-pub fn scrape_fe_manifest(branch: discord::Branch) -> Result<discord::FeManifest, ScrapeError> {
-    let html = fetch_branch_page(branch)?;
+pub async fn scrape_fe_manifest(
+    branch: discord::Branch,
+) -> Result<discord::FeManifest, ScrapeError> {
+    let html = fetch_branch_page(branch).await?;
     let assets = extract_assets_from_tags(&html);
 
     use ScrapeError::MissingBranchPageAssets;
@@ -66,14 +64,14 @@ pub fn scrape_fe_manifest(branch: discord::Branch) -> Result<discord::FeManifest
 
     Ok(discord::FeManifest {
         branch,
-        assets: assets.into_iter().map(Rc::new).collect(),
+        assets: assets.into_iter().collect(),
     })
 }
 
 /// Scrapes a [`discord::FeBuild`] from a [`discord::FeManifest`].
 ///
 /// Builds contain a superset of the information encapsulated within manifests.
-pub fn scrape_fe_build(
+pub async fn scrape_fe_build(
     fe_manifest: discord::FeManifest,
     assets: &mut Assets,
 ) -> Result<discord::FeBuild, ScrapeError> {
@@ -83,8 +81,8 @@ pub fn scrape_fe_build(
         "unable to locate entrypoint root script; discord has updated their /channels/@me html",
     );
 
-    let entrypoint_js =
-        std::str::from_utf8(assets.content(&*entrypoint_asset)?).map_err(ScrapeError::Decoding)?;
+    let content = assets.content(&entrypoint_asset).await?;
+    let entrypoint_js = std::str::from_utf8(content).map_err(ScrapeError::Decoding)?;
 
     let (hash, number) = match_static_build_information(entrypoint_js)?;
 
@@ -115,10 +113,10 @@ pub fn match_static_build_information(js: &str) -> Result<(String, u32), ScrapeE
 /// Fetches the main application page for a branch.
 ///
 /// This uses the default Isahc client.
-pub fn fetch_branch_page(branch: discord::Branch) -> Result<String, ScrapeError> {
+pub async fn fetch_branch_page(branch: discord::Branch) -> Result<String, ScrapeError> {
     let url = branch.base().join("channels/@me").unwrap();
 
-    String::from_utf8(fetch_url_content(url)?)
+    String::from_utf8(fetch_url_content(url).await?)
         .map_err(|err| ScrapeError::Decoding(err.utf8_error()))
 }
 

@@ -1,5 +1,4 @@
 use std::io::Read;
-use std::rc::Rc;
 
 use anyhow::Result;
 use chrono::Utc;
@@ -18,7 +17,7 @@ pub fn post_build_to_webhook(build: &discord::FeBuild, subscription: &Subscripti
     let assets = &build.manifest.assets;
 
     let format_asset =
-        |asset: &Rc<FeAsset>| format!("[`{}.{}`]({})", asset.name, asset.typ.ext(), asset.url());
+        |asset: &FeAsset| format!("[`{}.{}`]({})", asset.name, asset.typ.ext(), asset.url());
 
     let scripts = assets
         .iter()

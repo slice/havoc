@@ -1,10 +1,10 @@
 use std::fmt::{Display, Formatter};
-use std::rc::Rc;
 
 use crate::artifact::Artifact;
 use crate::discord::{Assets, Branch, FeAsset};
 use crate::dump::{DumpError, DumpItem, DumpResult};
 
+use async_trait::async_trait;
 use serde::Serialize;
 
 /// A frontend manifest.
@@ -18,7 +18,7 @@ use serde::Serialize;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct FeManifest {
     pub branch: Branch,
-    pub assets: Vec<Rc<FeAsset>>,
+    pub assets: Vec<FeAsset>,
 }
 
 impl Display for FeManifest {
@@ -32,8 +32,9 @@ impl Display for FeManifest {
     }
 }
 
+#[async_trait]
 impl Artifact for FeManifest {
-    fn assets(&self) -> &[Rc<FeAsset>] {
+    fn assets(&self) -> &[FeAsset] {
         &self.assets
     }
 
@@ -41,7 +42,7 @@ impl Artifact for FeManifest {
         format!("fe_{}", format!("{:?}", self.branch).to_ascii_lowercase())
     }
 
-    fn dump(&self, _: DumpItem, _: &mut Assets) -> Result<Vec<DumpResult>, DumpError> {
+    async fn dump(&self, _: DumpItem, _: &mut Assets) -> Result<Vec<DumpResult>, DumpError> {
         panic!("unsupported dump operation")
     }
 }

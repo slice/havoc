@@ -4,12 +4,18 @@ use std::collections::HashMap;
 use anyhow::{Context, Result};
 use disruption::config::Config;
 use disruption::subscription::Subscription;
-use havoc::discord::{Assets, Branch};
+use havoc::discord::{Assets, Branch, FeBuild};
 use havoc::scrape;
 
 type State = HashMap<Branch, u32>;
 
-fn run(config: Config) -> Result<()> {
+async fn scrape_branch(branch: Branch) -> Result<FeBuild> {
+    let manifest = scrape::scrape_fe_manifest(branch).await?;
+    let mut assets = Assets::with_assets(manifest.assets.clone());
+    Ok(scrape::scrape_fe_build(manifest, &mut assets).await?)
+}
+
+async fn run(config: Config) -> Result<()> {
     // Tracks the last known build numbers for each branch.
     let mut state: State = HashMap::new();
 
@@ -39,13 +45,10 @@ fn run(config: Config) -> Result<()> {
             let scrape_span = tracing::info_span!("scrape", ?branch);
             let _enter = scrape_span.enter();
 
-            let build = match scrape::scrape_fe_manifest(branch).and_then(|manifest| {
-                let mut assets = Assets::with_assets(manifest.assets.clone());
-                scrape::scrape_fe_build(manifest, &mut assets)
-            }) {
+            let build = match scrape_branch(branch).await {
                 Ok(build) => build,
-                Err(err) => {
-                    tracing::error!(?branch, "failed to scrape {:?}", err);
+                Err(error) => {
+                    tracing::error!(?branch, ?error, "failed to scrape");
                     continue;
                 }
             };
@@ -83,7 +86,8 @@ fn run(config: Config) -> Result<()> {
     }
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let config_file_path = match std::env::args().nth(1) {
@@ -98,5 +102,5 @@ fn main() -> Result<()> {
         std::fs::read_to_string(config_file_path).context("cannot read config file")?;
     let config: Config = toml::from_str(&config_file_text).context("cannot parse config file")?;
 
-    run(config)
+    run(config).await
 }

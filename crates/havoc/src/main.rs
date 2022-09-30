@@ -34,7 +34,8 @@ fn app() -> App<'static> {
         )
 }
 
-fn main() -> Result<()> {
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let app = app();
@@ -47,10 +48,12 @@ fn main() -> Result<()> {
 
         let scrape::Target::Frontend(branch) = target;
 
-        let manifest =
-            scrape::scrape_fe_manifest(branch).context("failed to scrape frontend manifest")?;
+        let manifest = scrape::scrape_fe_manifest(branch)
+            .await
+            .context("failed to scrape frontend manifest")?;
         let mut assets = havoc::discord::Assets::with_assets(manifest.assets.clone());
         let mut build = crate::scrape::scrape_fe_build(manifest, &mut assets)
+            .await
             .context("failed to scrape frontend build")?;
 
         println!("scraped: {}", build);
@@ -65,14 +68,18 @@ fn main() -> Result<()> {
             .values_of("dump")
             .map(|values| values.collect::<Vec<_>>())
         {
-            dump_items(&dumping, &mut build, &mut assets)?;
+            dump_items(&dumping, &mut build, &mut assets).await?;
         }
     }
 
     Ok(())
 }
 
-fn dump_items(dumping: &[&str], artifact: &mut dyn Artifact, assets: &mut Assets) -> Result<()> {
+async fn dump_items(
+    dumping: &[&str],
+    artifact: &mut dyn Artifact,
+    assets: &mut Assets,
+) -> Result<()> {
     let cwd = std::env::current_dir().context("failed to obtain current working dir")?;
 
     for item in dumping {
@@ -92,6 +99,7 @@ fn dump_items(dumping: &[&str], artifact: &mut dyn Artifact, assets: &mut Assets
 
         let dump_results = artifact
             .dump(dump_item, assets)
+            .await
             .with_context(|| format!("failed to dump {:?} ({})", dump_item, item))?;
 
         println!(" {} result(s)", dump_results.len());

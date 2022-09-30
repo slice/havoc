@@ -12,9 +12,10 @@ anyhow = "1.0.55"
 tracing = "0.1.31"
 tracing-subscriber = "0.2.12"
 havoc = { path = "../havoc" }
-isahc = "1.6"
+isahc = "1.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = "0.4"
 chrono-tz = "0.6"
 toml = "0.5"
+tokio = { version = "1.21.2", features = ["full"] }

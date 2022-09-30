@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
-use std::rc::Rc;
 
 use crate::artifact::Artifact;
 use crate::discord::{Assets, FeAsset, FeManifest, RootScript};
@@ -9,6 +8,7 @@ use crate::dump::{DumpError, DumpItem, DumpResult};
 use crate::parse::webpack::ModuleId;
 use crate::scrape::ScrapeError;
 
+use async_trait::async_trait;
 use serde::Serialize;
 
 /// A frontend build.
@@ -26,7 +26,7 @@ pub struct FeBuild {
 }
 
 impl FeBuild {
-    pub fn parse_classes(
+    pub async fn parse_classes(
         &self,
         assets: &mut Assets,
     ) -> Result<crate::parse::ClassModuleMap, DumpError> {
@@ -35,23 +35,24 @@ impl FeBuild {
                 "failed to locate root classes script; discord has updated their /channels/@me",
             ),
         )?;
-        let classes_js =
-            std::str::from_utf8(assets.content(&classes_asset)?).map_err(ScrapeError::Decoding)?;
+
+        let content = assets.content(&classes_asset).await?;
+        let classes_js = std::str::from_utf8(content).map_err(ScrapeError::Decoding)?;
         let script = crate::parse::parse_script(classes_js)?;
         let mapping = crate::parse::walk_classes_chunk(&script)?;
 
         Ok(mapping)
     }
 
-    fn dump_classes(&self, assets: &mut Assets) -> Result<Vec<DumpResult>, DumpError> {
-        let class_module_map = self.parse_classes(assets)?;
+    async fn dump_classes(&self, assets: &mut Assets) -> Result<Vec<DumpResult>, DumpError> {
+        let class_module_map = self.parse_classes(assets).await?;
         Ok(vec![DumpResult::from_serializable(
             &class_module_map,
             "classes",
         )?])
     }
 
-    fn parse_webpack_chunk<'acm>(
+    async fn parse_webpack_chunk<'acm>(
         &self,
         assets: &'acm mut Assets,
     ) -> Result<(swc_ecma_ast::Script, HashMap<ModuleId, &'acm str>), DumpError> {
@@ -61,8 +62,9 @@ impl FeBuild {
                 .ok_or(ScrapeError::MissingBranchPageAssets(
                 "failed to locate root entrypoint script; discord has updated their /channels/@me",
             ))?;
-        let entrypoint_js = std::str::from_utf8(assets.content(&entrypoint_asset)?)
-            .map_err(ScrapeError::Decoding)?;
+
+        let content = assets.content(&entrypoint_asset).await?;
+        let entrypoint_js = std::str::from_utf8(content).map_err(ScrapeError::Decoding)?;
 
         tracing::info!("parsing entrypoint script");
         let script = crate::parse::parse_script(entrypoint_js)?;
@@ -84,8 +86,11 @@ impl FeBuild {
         Ok((script, modules))
     }
 
-    fn dump_webpack_modules(&self, assets: &mut Assets) -> Result<Vec<DumpResult>, DumpError> {
-        let (_, modules) = self.parse_webpack_chunk(assets)?;
+    async fn dump_webpack_modules(
+        &self,
+        assets: &mut Assets,
+    ) -> Result<Vec<DumpResult>, DumpError> {
+        let (_, modules) = self.parse_webpack_chunk(assets).await?;
         Ok(vec![DumpResult::from_serializable(&modules, "entrypoint")?])
     }
 }
@@ -96,8 +101,9 @@ impl Display for FeBuild {
     }
 }
 
+#[async_trait]
 impl Artifact for FeBuild {
-    fn assets(&self) -> &[Rc<FeAsset>] {
+    fn assets(&self) -> &[FeAsset] {
         &self.manifest.assets
     }
 
@@ -113,10 +119,14 @@ impl Artifact for FeBuild {
         )
     }
 
-    fn dump(&self, item: DumpItem, assets: &mut Assets) -> Result<Vec<DumpResult>, DumpError> {
+    async fn dump(
+        &self,
+        item: DumpItem,
+        assets: &mut Assets,
+    ) -> Result<Vec<DumpResult>, DumpError> {
         match item {
-            DumpItem::CssClasses => self.dump_classes(assets),
-            DumpItem::WebpackModules => self.dump_webpack_modules(assets),
+            DumpItem::CssClasses => self.dump_classes(assets).await,
+            DumpItem::WebpackModules => self.dump_webpack_modules(assets).await,
             DumpItem::Itself => Ok(vec![DumpResult::from_serializable(self, "build")?]),
         }
     }
