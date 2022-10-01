@@ -1,13 +1,11 @@
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 use disruption::config::Config;
+use disruption::db::Db;
 use disruption::subscription::Subscription;
 use havoc::discord::{Assets, Branch, FeBuild};
 use havoc::scrape;
-
-type State = HashMap<Branch, u32>;
 
 async fn scrape_branch(branch: Branch) -> Result<FeBuild> {
     let manifest = scrape::scrape_fe_manifest(branch).await?;
@@ -16,16 +14,8 @@ async fn scrape_branch(branch: Branch) -> Result<FeBuild> {
 }
 
 async fn run(config: Config) -> Result<()> {
-    // Tracks the last known build numbers for each branch.
-    let mut state: State = HashMap::new();
-
-    if let Ok(state_file_text) = std::fs::read_to_string(&config.state_file_path) {
-        tracing::info!(path = ?config.state_file_path, "using state file");
-        state = serde_json::from_str(&state_file_text).context("failed to decode state file")?;
-        tracing::info!(?state, "loaded state");
-    } else {
-        tracing::info!("cannot load state file, beginning with empty state");
-    }
+    let conn = rusqlite::Connection::open(config.database_file_path)?;
+    let db = Db::new(conn);
 
     // Go from [subscription] to {branch: [subscription]}.
     let mut branches: HashMap<Branch, Vec<&Subscription>> = HashMap::new();
@@ -60,24 +50,21 @@ async fn run(config: Config) -> Result<()> {
                 Ok(())
             };
 
-            match state.entry(branch) {
-                Entry::Occupied(state_entry) if *state_entry.get() == build.number => {
-                    tracing::trace!("{} is stale", branch);
-                }
-                _ => {
-                    tracing::info!(
-                        "detected new build (branch: {}, number: {})",
-                        branch,
-                        build.number,
-                    );
-                    state.insert(branch, build.number);
-                    publish().context("failed to publish")?;
-
-                    tracing::debug!(path = ?config.state_file_path, "writing to state file");
-                    std::fs::write(&config.state_file_path, serde_json::to_string(&state)?)
-                        .context("failed to write to state file")?;
-                }
+            if db.last_known_build_on_branch(branch).await? == Some(build.number) {
+                tracing::trace!("{} is stale", branch);
+                continue;
             }
+
+            tracing::info!(
+                "detected new build (branch: {}, number: {})",
+                branch,
+                build.number,
+            );
+
+            db.detected_build_change_on_branch(build.number, branch)
+                .await?;
+
+            publish().context("failed to publish")?;
         }
 
         tracing::trace!("sleeping for {}ms", config.interval_milliseconds);

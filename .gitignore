@@ -5,3 +5,4 @@
 /state.json
 /havoc_*.json
 /*.js
+*.db
