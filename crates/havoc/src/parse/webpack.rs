@@ -118,7 +118,7 @@ pub fn walk_webpack_chunk(script: &ast::Script) -> Result<WebpackChunk, ParseErr
             Some(ast::ExprOrSpread { expr: _boxed_chunk_ids_expr, .. }),
             Some(ast::ExprOrSpread { expr: boxed_modules_expr, .. })
         ) = (chunk_ids_eos, modules_eos);
-        let modules_expr = &*boxed_modules_expr;
+        let modules_expr = boxed_modules_expr;
 
         then {
             for (module_id, func) in walk_module_listing(modules_expr) {

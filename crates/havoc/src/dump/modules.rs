@@ -14,9 +14,9 @@ use super::DumpResult;
 pub struct WebpackModules;
 
 impl WebpackModules {
-    async fn parse_webpack_chunk<'acm>(
-        assets: &'acm mut Assets,
-    ) -> Result<(swc_ecma_ast::Script, HashMap<ModuleId, &'acm str>), DumpError> {
+    async fn parse_webpack_chunk(
+        assets: &mut Assets,
+    ) -> Result<(swc_ecma_ast::Script, HashMap<ModuleId, &str>), DumpError> {
         let entrypoint_asset = assets.find_root_script(RootScript::Entrypoint).ok_or(
             ScrapeError::MissingBranchPageAssets(
                 "failed to locate root entrypoint script; discord has updated their HTML",

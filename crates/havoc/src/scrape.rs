@@ -31,10 +31,10 @@ pub(crate) async fn fetch_url_content(url: Url) -> Result<Vec<u8>, ScrapeError> 
 
     // TODO: use custom headers here
     let mut response = isahc::get_async(url.as_str()).await?;
-    return response
+    response
         .bytes()
         .await
-        .map_err(ScrapeError::ReadingHttpResponse);
+        .map_err(ScrapeError::ReadingHttpResponse)
 }
 
 /// Scrapes a [`discord::FeManifest`] for a specific [`discord::Branch`].
