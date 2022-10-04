@@ -2,40 +2,23 @@
 
 use std::fmt::Display;
 
-use async_trait::async_trait;
+use crate::discord::FeAsset;
 
-use crate::discord::{Assets, FeAsset};
-use crate::dump::{DumpError, DumpItem, DumpResult};
-
-/// Something that you can dump information from. It is also assumed that
-/// artifacts have some associated [`FeAsset`](crate::discord::FeAsset)s,
-/// accessible through [`assets`](Artifact::assets).
+/// Something that you can dump information from.
 ///
-/// This provides a shared interface between things that you can extract data
-/// from. This is principally used by the command line application, where you
-/// specify some artifact to be scraped, and what to dump from it. If you have
-/// a specific goal in mind, it may be best to use the types directly instead
-/// of the `Artifact` abstraction.
+/// It is assumed that artifacts contain associated [`FeAsset`](crate::discord::FeAsset)s,
+/// accessible by calling [`assets`](Artifact::assets). The [`dump_prefix`](Artifact::dump_prefix)
+/// is used when writing out dumped data to disk.
 ///
-/// Check whether a dump item is supported with
-/// [`supports_dump_item`](Artifact::supports_dump_item), and
-/// dump that item with the [`dump`](Artifact::dump) method.
-#[async_trait]
+/// This trait does not provide any facilities for dumping useful data itself; instead,
+/// things that implement this trait are "consumed" by the
+/// [`Dump::dump`](crate::dump::Dump::dump) method.
 pub trait Artifact: Display {
-    /// Returns whether a particular dump item is supported or not.
-    fn supports_dump_item(&self, _item: DumpItem) -> bool {
-        false
-    }
-
     /// Returns the dump prefix for this artifact, which is intended to be
-    /// prepended to [`DumpResult`] filenames when dumping.
+    /// prepended to [`DumpResult`](crate::dump::DumpResult) filenames when dumping.
     fn dump_prefix(&self) -> String {
         "".to_owned()
     }
-
-    /// Dumps some data from this artifact.
-    async fn dump(&self, item: DumpItem, assets: &mut Assets)
-        -> Result<Vec<DumpResult>, DumpError>;
 
     /// Returns the assets associated with this artifact.
     fn assets(&self) -> &[FeAsset];

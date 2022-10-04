@@ -1,10 +1,18 @@
+//! CSS class mapping dumping.
+
+use crate::{
+    discord::{Assets, RootScript},
+    dump::{DumpError, DumpResult},
+    parse::{ModuleId, ParseError},
+    scrape::ScrapeError,
+};
+
+use super::Dump;
+
 use std::collections::HashMap;
 
 extern crate swc_ecma_ast as ast;
 use swc_ecma_visit::{Visit, VisitWith};
-
-use super::webpack::ModuleId;
-use super::ParseError;
 
 pub type ClassMappingMap = HashMap<String, String>;
 
@@ -87,4 +95,24 @@ pub fn walk_classes_chunk(script: &ast::Script) -> Result<ClassModuleMap, ParseE
     );
 
     Ok(visitor.modules)
+}
+
+pub struct CSSClasses;
+
+#[async_trait::async_trait]
+impl Dump for CSSClasses {
+    async fn dump(&mut self, assets: &mut Assets) -> Result<DumpResult, DumpError> {
+        let classes_asset = assets.find_root_script(RootScript::Classes).ok_or(
+            ScrapeError::MissingBranchPageAssets(
+                "failed to locate root classes script; discord has updated their /channels/@me",
+            ),
+        )?;
+
+        let content = assets.content(&classes_asset).await?;
+        let classes_js = std::str::from_utf8(content).map_err(ScrapeError::Decoding)?;
+        let script = crate::parse::parse_script(classes_js)?;
+        let mapping = walk_classes_chunk(&script)?;
+
+        Ok(DumpResult::from_serializable(&mapping, "classes")?)
+    }
 }

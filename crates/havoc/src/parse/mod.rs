@@ -1,7 +1,4 @@
-pub mod classes;
 pub mod webpack;
-
-pub use classes::*;
 pub use webpack::*;
 
 use swc_common::{sync::Lrc, FileName, SourceMap};

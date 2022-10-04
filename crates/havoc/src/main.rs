@@ -3,7 +3,7 @@ use clap::{App, AppSettings, Arg};
 
 use havoc::artifact::Artifact;
 use havoc::discord::Assets;
-use havoc::dump::DumpItem;
+use havoc::dump::Dump;
 use havoc::scrape;
 
 fn app() -> App<'static> {
@@ -75,6 +75,14 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+fn resolve_dumper(name: &str) -> Option<Box<dyn Dump>> {
+    match name {
+        "classes" => Some(Box::new(havoc::dump::CSSClasses)),
+        "modules" => Some(Box::new(havoc::dump::WebpackModules)),
+        _ => None,
+    }
+}
+
 async fn dump_items(
     dumping: &[&str],
     artifact: &mut dyn Artifact,
@@ -83,47 +91,31 @@ async fn dump_items(
     let cwd = std::env::current_dir().context("failed to obtain current working dir")?;
 
     for item in dumping {
-        let dump_item: DumpItem = item
-            .parse()
-            .map_err(|_| anyhow!("`{}` is not a valid dump item", item))
-            .context("invalid dump item")?;
-
-        if !artifact.supports_dump_item(dump_item) {
-            return Err(anyhow!("unsupported dump item for this artifact"));
-        }
+        let mut dumper: Box<dyn Dump> =
+            resolve_dumper(item).ok_or_else(|| anyhow!("`{}` is an unknown dumper", item))?;
 
         print!("dumping item \"{}\" ...", item);
 
-        let dump_span = tracing::info_span!("dumping", ?dump_item);
+        let dump_span = tracing::info_span!("dumping", dumper = ?item);
         let _span = dump_span.enter();
 
-        let dump_results = artifact
-            .dump(dump_item, assets)
+        let result = dumper
+            .dump(assets)
             .await
-            .with_context(|| format!("failed to dump {:?} ({})", dump_item, item))?;
+            .with_context(|| format!("failed to dump using dumper `{}`", item))?;
 
-        println!(" {} result(s)", dump_results.len());
+        let filename = result.filename();
 
-        for result in &dump_results {
-            let filename = result.filename();
+        let full_filename = format!("havoc_{}_{}", artifact.dump_prefix(), filename);
+        let dest = cwd.join(full_filename.clone());
 
-            let full_filename = format!("havoc_{}_{}", artifact.dump_prefix(), filename);
-            let dest = cwd.join(full_filename.clone());
+        print!("\twriting \"{}\" to {} ...", result.name, full_filename);
 
-            print!(
-                "\twriting \"{}\" ({:?}, {}) to {} ...",
-                result.name,
-                result.typ,
-                result.content.len(),
-                full_filename
-            );
+        result
+            .write(&dest)
+            .with_context(|| format!("failed to write dump result to disk at {:?}", dest))?;
 
-            result
-                .write(&dest)
-                .with_context(|| format!("failed to write {:?} ({}) to disk", dump_item, item))?;
-
-            println!(" done");
-        }
+        println!(" done");
     }
 
     Ok(())
