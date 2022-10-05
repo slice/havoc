@@ -108,8 +108,10 @@ impl Dump for CSSClasses {
             ),
         )?;
 
-        let content = assets.content(&classes_asset).await?;
-        let classes_js = std::str::from_utf8(content).map_err(ScrapeError::Decoding)?;
+        let content = assets.raw_content(&classes_asset).await?;
+        let classes_js = std::str::from_utf8(&content)
+            .map_err(ScrapeError::Decoding)?
+            .to_owned();
         let script = crate::parse::parse_script(classes_js)?;
         let mapping = walk_classes_chunk(&script)?;
 

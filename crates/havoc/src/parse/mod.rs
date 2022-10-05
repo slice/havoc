@@ -7,9 +7,9 @@ extern crate swc_ecma_ast as ast;
 use thiserror::Error;
 
 /// Parses a script.
-pub fn parse_script(js: &str) -> Result<ast::Script, ParseError> {
+pub fn parse_script(js: String) -> Result<ast::Script, ParseError> {
     let cm: Lrc<SourceMap> = Default::default();
-    let fm = cm.new_source_file(FileName::Custom("script.js".into()), js.into());
+    let fm = cm.new_source_file(FileName::Custom("script.js".into()), js);
 
     let lexer = Lexer::new(
         Syntax::Es(Default::default()),

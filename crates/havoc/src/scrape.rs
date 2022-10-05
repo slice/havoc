@@ -6,18 +6,19 @@ use regex::Regex;
 use thiserror::Error;
 use url::Url;
 
+use crate::discord::assets::AssetError;
 use crate::discord::{self, Assets, RootScript};
 
 #[derive(Error, Debug)]
 pub enum ScrapeError {
-    #[error("http error")]
-    Http(#[from] isahc::error::Error),
+    #[error("network error")]
+    Network(#[from] NetworkError),
 
     #[error("malformed utf-8")]
     Decoding(#[source] Utf8Error),
 
-    #[error("failed to read http response")]
-    ReadingHttpResponse(io::Error),
+    #[error("asset resolution error")]
+    Asset(#[from] AssetError),
 
     #[error("branch page is missing assets: {0}")]
     MissingBranchPageAssets(&'static str),
@@ -26,15 +27,21 @@ pub enum ScrapeError {
     MissingBuildInformation,
 }
 
-pub(crate) async fn fetch_url_content(url: Url) -> Result<Vec<u8>, ScrapeError> {
+#[derive(Error, Debug)]
+pub enum NetworkError {
+    #[error("http error")]
+    Http(#[from] isahc::error::Error),
+
+    #[error("failed to perform i/o")]
+    Io(#[from] io::Error),
+}
+
+pub(crate) async fn fetch_url_content(url: Url) -> Result<Vec<u8>, NetworkError> {
     tracing::info!("GET {}", url.as_str());
 
     // TODO: use custom headers here
     let mut response = isahc::get_async(url.as_str()).await?;
-    response
-        .bytes()
-        .await
-        .map_err(ScrapeError::ReadingHttpResponse)
+    Ok(response.bytes().await?)
 }
 
 /// Scrapes a [`discord::FeManifest`] for a specific [`discord::Branch`].
@@ -81,8 +88,8 @@ pub async fn scrape_fe_build(
         "unable to locate entrypoint root script; discord has updated their /channels/@me html",
     );
 
-    let content = assets.content(&entrypoint_asset).await?;
-    let entrypoint_js = std::str::from_utf8(content).map_err(ScrapeError::Decoding)?;
+    let content = assets.raw_content(&entrypoint_asset).await?;
+    let entrypoint_js = std::str::from_utf8(&content).map_err(ScrapeError::Decoding)?;
 
     let (hash, number) = match_static_build_information(entrypoint_js)?;
 

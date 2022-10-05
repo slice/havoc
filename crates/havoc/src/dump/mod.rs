@@ -2,6 +2,7 @@
 
 use std::{borrow::Cow, path::Path};
 
+use crate::discord::assets::AssetError;
 use crate::{discord::Assets, scrape::ScrapeError};
 
 pub mod modules;
@@ -74,6 +75,9 @@ pub enum DumpWriteError {
 pub enum DumpError {
     #[error("failed to scrape")]
     ScrapeFailed(#[from] ScrapeError),
+
+    #[error("failed to resolve asset")]
+    Asset(#[from] AssetError),
 
     #[error("failed to serialize to JSON")]
     SerializationFailed(#[from] serde_json::Error),

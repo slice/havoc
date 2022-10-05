@@ -16,30 +16,31 @@ pub struct WebpackModules;
 impl WebpackModules {
     async fn parse_webpack_chunk(
         assets: &mut Assets,
-    ) -> Result<(swc_ecma_ast::Script, HashMap<ModuleId, &str>), DumpError> {
+    ) -> Result<(swc_ecma_ast::Script, HashMap<ModuleId, String>), DumpError> {
         let entrypoint_asset = assets.find_root_script(RootScript::Entrypoint).ok_or(
             ScrapeError::MissingBranchPageAssets(
                 "failed to locate root entrypoint script; discord has updated their HTML",
             ),
         )?;
 
-        let content = assets.content(&entrypoint_asset).await?;
-        let entrypoint_js = std::str::from_utf8(content).map_err(ScrapeError::Decoding)?;
+        let content = assets.preprocessed_content(&entrypoint_asset).await?;
+        let entrypoint_js = std::str::from_utf8(&content).map_err(ScrapeError::Decoding)?;
 
         tracing::info!("parsing entrypoint script");
-        let script = crate::parse::parse_script(entrypoint_js)?;
+        let script = crate::parse::parse_script(entrypoint_js.to_owned())?;
 
         let chunk = crate::parse::walk_webpack_chunk(&script)?;
 
-        let modules: HashMap<ModuleId, &str> = chunk
+        let modules: HashMap<ModuleId, String> = chunk
             .modules
             .iter()
             .map(|(module_id, module)| {
                 let span = module.func.span();
                 let module_beginning = span.lo.0 as usize;
                 let module_end = span.hi.0 as usize;
+                let code = entrypoint_js[module_beginning..module_end].to_owned();
 
-                (*module_id, &entrypoint_js[module_beginning..module_end])
+                (*module_id, code)
             })
             .collect();
 

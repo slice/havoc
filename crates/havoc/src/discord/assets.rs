@@ -1,8 +1,12 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::sync::Arc;
+
+use futures::future::BoxFuture;
+use thiserror::Error;
 
 use crate::discord::{FeAsset, FeAssetType};
-use crate::scrape::ScrapeError;
+use crate::scrape::NetworkError;
 
 /// The types of various `<script>` tags in Discord application's HTML.
 /// Keep in mind that these are fragile assumptions and could potentially
@@ -38,10 +42,29 @@ impl RootScript {
     }
 }
 
+#[derive(Error, Debug)]
+pub enum AssetError {
+    #[error("failed to make network request")]
+    Network(#[from] NetworkError),
+
+    #[error("failed to preprocess asset content")]
+    Preprocessing(#[from] AnyError),
+}
+
+// this is probably good enough amirite
+pub type AnyError = Box<dyn std::error::Error + Send + Sync>;
+
+pub type AssetPreprocessor =
+    Box<dyn Fn(&[u8]) -> BoxFuture<Result<Vec<u8>, AnyError>> + Send + Sync>;
+
+type AssetContent = Arc<[u8]>;
+
 /// A collection of assets and their scraped content.
 pub struct Assets {
     pub assets: Vec<FeAsset>,
-    content: HashMap<String, Vec<u8>>,
+    raw_content: HashMap<String, AssetContent>,
+    preprocessors: HashMap<FeAssetType, AssetPreprocessor>,
+    preprocessed_content: HashMap<String, AssetContent>,
 }
 
 impl Assets {
@@ -49,7 +72,9 @@ impl Assets {
     pub fn new() -> Self {
         Self {
             assets: Vec::new(),
-            content: HashMap::new(),
+            raw_content: HashMap::new(),
+            preprocessors: HashMap::new(),
+            preprocessed_content: HashMap::new(),
         }
     }
 
@@ -57,19 +82,46 @@ impl Assets {
     pub fn with_assets(assets: Vec<FeAsset>) -> Self {
         Self {
             assets,
-            content: HashMap::new(),
+            ..Default::default()
         }
     }
 
-    /// Returns the content of an asset, fetching it if necessary.
-    pub async fn content(&mut self, asset: &FeAsset) -> Result<&[u8], ScrapeError> {
-        match self.content.entry(asset.name.clone()) {
-            Entry::Occupied(entry) => Ok(entry.into_mut()),
-            Entry::Vacant(entry) => {
-                tracing::info!(asset = ?asset, "content requested for unfetched asset, fetching...");
-                let content = crate::scrape::fetch_url_content(asset.url()).await?;
-                Ok(entry.insert(content))
+    /// Sets a preprocessor for a specific asset type.
+    pub fn set_preprocessor(&mut self, typ: FeAssetType, preprocessor: AssetPreprocessor) {
+        self.preprocessors.insert(typ, preprocessor);
+    }
+
+    /// Returns the raw content of an asset, fetching it if necessary.
+    ///
+    /// This method does not trigger preprocessors.
+    pub async fn raw_content(&mut self, asset: &FeAsset) -> Result<Arc<[u8]>, AssetError> {
+        match self.raw_content.entry(asset.name.clone()) {
+            Entry::Occupied(entry) => {
+                tracing::debug!(?asset, "content is already fetched");
+                Ok(Arc::clone(entry.get()))
             }
+            Entry::Vacant(entry) => {
+                tracing::info!(asset = ?asset, "unfetched content requested, fetching...");
+                let content = crate::scrape::fetch_url_content(asset.url()).await?;
+                Ok(Arc::clone(entry.insert(content.into())))
+            }
+        }
+    }
+
+    /// Returns the content of an asset, fetching and preprocessing it if necessary.
+    pub async fn preprocessed_content(&mut self, asset: &FeAsset) -> Result<Arc<[u8]>, AssetError> {
+        let raw_content: Arc<[u8]> = self.raw_content(asset).await?.into();
+
+        match self.preprocessed_content.entry(asset.name.clone()) {
+            Entry::Vacant(cache_entry) => {
+                if let Some(preprocessor) = self.preprocessors.get(&asset.typ) {
+                    let preprocessed_content: Arc<[u8]> = preprocessor(&raw_content).await?.into();
+                    Ok(Arc::clone(cache_entry.insert(preprocessed_content)))
+                } else {
+                    Ok(raw_content)
+                }
+            }
+            Entry::Occupied(cache_entry) => Ok(Arc::clone(cache_entry.get())),
         }
     }
 
