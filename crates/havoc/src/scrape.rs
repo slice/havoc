@@ -89,7 +89,7 @@ pub async fn scrape_fe_build(
     );
 
     let content = assets.raw_content(&entrypoint_asset).await?;
-    let entrypoint_js = std::str::from_utf8(&content).map_err(ScrapeError::Decoding)?;
+    let entrypoint_js = std::str::from_utf8(content).map_err(ScrapeError::Decoding)?;
 
     let (hash, number) = match_static_build_information(entrypoint_js)?;
 

@@ -1,6 +1,5 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use futures::future::BoxFuture;
 use thiserror::Error;
@@ -57,7 +56,7 @@ pub type AnyError = Box<dyn std::error::Error + Send + Sync>;
 pub type AssetPreprocessor =
     Box<dyn Fn(&[u8]) -> BoxFuture<Result<Vec<u8>, AnyError>> + Send + Sync>;
 
-type AssetContent = Arc<[u8]>;
+type AssetContent = Vec<u8>;
 
 /// A collection of assets and their scraped content.
 pub struct Assets {
@@ -94,34 +93,22 @@ impl Assets {
     /// Returns the raw content of an asset, fetching it if necessary.
     ///
     /// This method does not trigger preprocessors.
-    pub async fn raw_content(&mut self, asset: &FeAsset) -> Result<Arc<[u8]>, AssetError> {
-        match self.raw_content.entry(asset.name.clone()) {
-            Entry::Occupied(entry) => {
-                tracing::debug!(?asset, "content is already fetched");
-                Ok(Arc::clone(entry.get()))
-            }
-            Entry::Vacant(entry) => {
-                tracing::info!(asset = ?asset, "unfetched content requested, fetching...");
-                let content = crate::scrape::fetch_url_content(asset.url()).await?;
-                Ok(Arc::clone(entry.insert(content.into())))
-            }
-        }
+    pub async fn raw_content(&mut self, asset: &FeAsset) -> Result<&[u8], AssetError> {
+        raw_content_inner(&mut self.raw_content, asset).await
     }
 
     /// Returns the content of an asset, fetching and preprocessing it if necessary.
-    pub async fn preprocessed_content(&mut self, asset: &FeAsset) -> Result<Arc<[u8]>, AssetError> {
-        let raw_content: Arc<[u8]> = self.raw_content(asset).await?.into();
-
+    pub async fn preprocessed_content(&mut self, asset: &FeAsset) -> Result<&[u8], AssetError> {
         match self.preprocessed_content.entry(asset.name.clone()) {
             Entry::Vacant(cache_entry) => {
+                let raw_content = raw_content_inner(&mut self.raw_content, asset).await?;
                 if let Some(preprocessor) = self.preprocessors.get(&asset.typ) {
-                    let preprocessed_content: Arc<[u8]> = preprocessor(&raw_content).await?.into();
-                    Ok(Arc::clone(cache_entry.insert(preprocessed_content)))
+                    Ok(cache_entry.insert(preprocessor(raw_content).await?))
                 } else {
                     Ok(raw_content)
                 }
             }
-            Entry::Occupied(cache_entry) => Ok(Arc::clone(cache_entry.get())),
+            Entry::Occupied(cache_entry) => Ok(cache_entry.into_mut()),
         }
     }
 
@@ -132,6 +119,23 @@ impl Assets {
             .filter(|asset| asset.typ == FeAssetType::Js)
             .nth(root_script_type.asset_index())
             .cloned()
+    }
+}
+
+async fn raw_content_inner<'cache>(
+    content_cache: &'cache mut HashMap<String, AssetContent>,
+    asset: &'_ FeAsset,
+) -> Result<&'cache [u8], AssetError> {
+    match content_cache.entry(asset.name.clone()) {
+        Entry::Occupied(entry) => {
+            tracing::debug!(?asset, "asset content is cached");
+            Ok(entry.into_mut())
+        }
+        Entry::Vacant(entry) => {
+            tracing::info!(?asset, "unfetched asset content requested, fetching");
+            let content = crate::scrape::fetch_url_content(asset.url()).await?;
+            Ok(entry.insert(content))
+        }
     }
 }
 
