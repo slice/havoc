@@ -4,7 +4,6 @@ use std::hash::{Hash, Hasher};
 use crate::artifact::Artifact;
 use crate::discord::{FeAsset, FeManifest};
 
-use async_trait::async_trait;
 use serde::Serialize;
 
 /// A frontend build.
@@ -27,7 +26,6 @@ impl Display for FeBuild {
     }
 }
 
-#[async_trait]
 impl Artifact for FeBuild {
     fn assets(&self) -> &[FeAsset] {
         &self.manifest.assets
