@@ -51,7 +51,7 @@ pub fn post_build_to_webhook(build: &discord::FeBuild, subscription: &Subscripti
     let embed = json!({
         "title": format!("{} {}", build.manifest.branch, build.number),
         "color": build.manifest.branch.color(),
-        "description": format!("Hash: `{}`", build.hash),
+        "description": format!("Hash: `{}`", build.manifest.hash),
         "fields": [
             {"name": "Scripts", "value": scripts_listing, "inline": false},
             {"name": "Styles", "value": styles_listing, "inline": false},

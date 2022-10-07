@@ -1,5 +1,5 @@
 use anyhow::Result;
-use havoc::discord::Branch;
+use havoc::discord::{Branch, FeBuild};
 use tokio::sync::oneshot;
 
 const DB_SCHEMA: &str = include_str!("./schema.sql");
@@ -37,6 +37,9 @@ impl Db {
             conn.execute_batch(DB_SCHEMA)
                 .expect("failed to execute initial schema");
 
+            conn.pragma_update(None, "foreign_keys", "ON")
+                .expect("failed to enable foreign keys");
+
             while let Some(msg) = rx.recv().await {
                 handle_message(&mut conn, msg);
             }
@@ -61,33 +64,49 @@ impl Db {
         Ok(rx.await?)
     }
 
-    pub async fn last_known_build_on_branch(&self, branch: Branch) -> Result<Option<u32>> {
+    /// Fetch the last known build hash on a branch.
+    pub async fn last_known_build_hash_on_branch(&self, branch: Branch) -> Result<Option<String>> {
         self.call(move |conn| {
             conn.query_row(
-                "SELECT build_number
+                "SELECT build_id
                 FROM detected_builds_on_branches
                 WHERE branch = ?
                 ORDER BY detected_at DESC
                 LIMIT 1",
                 [branch.to_string()],
-                |row| row.get::<_, u32>(0),
+                |row| row.get::<_, String>(0),
             )
             .ok()
         })
         .await
     }
 
+    /// Log an instance of a build being present on a branch, inserting the
+    /// build into the database if necessary.
     pub async fn detected_build_change_on_branch(
         &self,
-        build_number: u32,
+        build: &FeBuild,
         branch: Branch,
     ) -> Result<()> {
-        self.call(move |conn| {
-            conn.execute(
-                "INSERT INTO detected_builds_on_branches (build_number, branch, detected_at)
+        let number = build.number;
+        let hash = build.manifest.hash.clone();
+
+        self.call(move |conn| -> rusqlite::Result<()> {
+            let tx = conn.transaction()?;
+
+            tx.execute(
+                "INSERT OR IGNORE INTO detected_builds (build_id, build_number)
+                VALUES (?, ?)",
+                (&hash, number),
+            )?;
+
+            tx.execute(
+                "INSERT INTO detected_builds_on_branches (build_id, branch, detected_at)
                 VALUES (?, ?, ?)",
-                (build_number, branch.to_string(), sqlite_now()),
-            )
+                (&hash, branch.to_string(), sqlite_now()),
+            )?;
+
+            tx.commit()
         })
         .await??;
 

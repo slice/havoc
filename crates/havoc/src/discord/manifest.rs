@@ -16,6 +16,12 @@ use serde::Serialize;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct FeManifest {
     pub branch: Branch,
+
+    /// The build hash, also known as build ID.
+    ///
+    /// This value is available in the `X-Build-ID` header sent by Discord and
+    /// inside of the entrypoint script.
+    pub hash: String,
     pub assets: Vec<FeAsset>,
 }
 

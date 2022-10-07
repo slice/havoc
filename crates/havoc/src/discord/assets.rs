@@ -132,9 +132,10 @@ async fn raw_content_inner<'cache>(
             Ok(entry.into_mut())
         }
         Entry::Vacant(entry) => {
+            use isahc::AsyncReadResponseExt;
             tracing::info!(?asset, "unfetched asset content requested, fetching");
-            let content = crate::scrape::fetch_url_content(asset.url()).await?;
-            Ok(entry.insert(content))
+            let mut response = crate::scrape::get_async(asset.url()).await?;
+            Ok(entry.insert(response.bytes().await.map_err(NetworkError::Io)?))
         }
     }
 }

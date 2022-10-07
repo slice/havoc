@@ -16,13 +16,16 @@ use serde::Serialize;
 pub struct FeBuild {
     #[serde(flatten)]
     pub manifest: FeManifest,
-    pub hash: String,
     pub number: u32,
 }
 
 impl Display for FeBuild {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Discord {:?} {}", self.manifest.branch, self.number)
+        write!(
+            f,
+            "Discord {:?} {} ({})",
+            self.manifest.branch, self.number, self.manifest.hash
+        )
     }
 }
 
@@ -39,7 +42,7 @@ impl Artifact for FeBuild {
 
 impl Hash for FeBuild {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.hash.hash(state);
+        self.manifest.hash.hash(state);
         self.number.hash(state);
     }
 }

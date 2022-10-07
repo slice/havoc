@@ -4,13 +4,44 @@ use anyhow::{Context, Result};
 use disruption::config::Config;
 use disruption::db::Db;
 use disruption::subscription::Subscription;
-use havoc::discord::{Assets, Branch, FeBuild};
+use havoc::discord::{Assets, Branch};
 use havoc::scrape;
 
-async fn scrape_branch(branch: Branch) -> Result<FeBuild> {
+async fn detect_changes_on_branch(
+    db: &Db,
+    branch: Branch,
+    subscriptions: &[&Subscription],
+) -> Result<()> {
+    let scrape_span = tracing::info_span!("scrape", ?branch);
+    let _enter = scrape_span.enter();
+
     let manifest = scrape::scrape_fe_manifest(branch).await?;
     let mut assets = Assets::with_assets(manifest.assets.clone());
-    Ok(scrape::scrape_fe_build(manifest, &mut assets).await?)
+
+    if db.last_known_build_hash_on_branch(branch).await? == Some(manifest.hash.clone()) {
+        tracing::trace!("{} is stale", branch);
+        return Ok(());
+    }
+
+    let build = scrape::scrape_fe_build(manifest, &mut assets).await?;
+    let publish = || -> Result<()> {
+        for subscription in subscriptions {
+            disruption::webhook::post_build_to_webhook(&build, *subscription)?;
+        }
+        Ok(())
+    };
+
+    tracing::info!(
+        "detected new build (branch: {}, number: {})",
+        branch,
+        build.number,
+    );
+
+    db.detected_build_change_on_branch(&build, branch).await?;
+
+    publish().context("failed to publish")?;
+
+    Ok(())
 }
 
 async fn run(config: Config) -> Result<()> {
@@ -32,39 +63,7 @@ async fn run(config: Config) -> Result<()> {
 
     loop {
         for (&branch, subscriptions) in &branches {
-            let scrape_span = tracing::info_span!("scrape", ?branch);
-            let _enter = scrape_span.enter();
-
-            let build = match scrape_branch(branch).await {
-                Ok(build) => build,
-                Err(error) => {
-                    tracing::error!(?branch, ?error, "failed to scrape");
-                    continue;
-                }
-            };
-
-            let publish = || -> Result<()> {
-                for subscription in subscriptions {
-                    disruption::webhook::post_build_to_webhook(&build, *subscription)?;
-                }
-                Ok(())
-            };
-
-            if db.last_known_build_on_branch(branch).await? == Some(build.number) {
-                tracing::trace!("{} is stale", branch);
-                continue;
-            }
-
-            tracing::info!(
-                "detected new build (branch: {}, number: {})",
-                branch,
-                build.number,
-            );
-
-            db.detected_build_change_on_branch(build.number, branch)
-                .await?;
-
-            publish().context("failed to publish")?;
+            detect_changes_on_branch(&db, branch, subscriptions).await?;
         }
 
         tracing::trace!("sleeping for {}ms", config.interval_milliseconds);

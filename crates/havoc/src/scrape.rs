@@ -23,8 +23,11 @@ pub enum ScrapeError {
     #[error("branch page is missing assets: {0}")]
     MissingBranchPageAssets(&'static str),
 
-    #[error("cannot find static build information in entrypoint script")]
-    MissingBuildInformation,
+    #[error("missing static build information")]
+    MissingStaticBuildInformation,
+
+    #[error("missing networked build information")]
+    MissingNetworkBuildInformation,
 }
 
 #[derive(Error, Debug)]
@@ -32,23 +35,28 @@ pub enum NetworkError {
     #[error("http error")]
     Http(#[from] isahc::error::Error),
 
+    #[error("encountered malformed HTTP header")]
+    MalforedHeader,
+
     #[error("failed to perform i/o")]
     Io(#[from] io::Error),
 }
 
-pub(crate) async fn fetch_url_content(url: Url) -> Result<Vec<u8>, NetworkError> {
+type IsahcResponse = http::Response<isahc::AsyncBody>;
+
+pub(crate) async fn get_async(url: Url) -> Result<IsahcResponse, NetworkError> {
     tracing::info!("GET {}", url.as_str());
 
-    // TODO: use custom headers here
-    let mut response = isahc::get_async(url.as_str()).await?;
-    Ok(response.bytes().await?)
+    Ok(isahc::get_async(url.as_str()).await?)
 }
 
 /// Scrapes a [`discord::FeManifest`] for a specific [`discord::Branch`].
 pub async fn scrape_fe_manifest(
     branch: discord::Branch,
 ) -> Result<discord::FeManifest, ScrapeError> {
-    let html = fetch_branch_page(branch).await?;
+    let mut response = request_branch_page(branch).await?;
+    let html = response.text().await.map_err(NetworkError::Io)?;
+
     let assets = extract_assets_from_tags(&html);
 
     use ScrapeError::MissingBranchPageAssets;
@@ -69,8 +77,16 @@ pub async fn scrape_fe_manifest(
         ));
     }
 
+    let hash = response
+        .headers()
+        .get("x-build-id")
+        .ok_or(ScrapeError::MissingNetworkBuildInformation)?
+        .to_str()
+        .map_err(|_| NetworkError::MalforedHeader)?;
+
     Ok(discord::FeManifest {
         branch,
+        hash: hash.to_owned(),
         assets: assets.into_iter().collect(),
     })
 }
@@ -90,12 +106,10 @@ pub async fn scrape_fe_build(
 
     let content = assets.raw_content(&entrypoint_asset).await?;
     let entrypoint_js = std::str::from_utf8(content).map_err(ScrapeError::Decoding)?;
-
-    let (hash, number) = match_static_build_information(entrypoint_js)?;
+    let (_, number) = match_static_build_information(entrypoint_js)?;
 
     Ok(discord::FeBuild {
         manifest: fe_manifest,
-        hash,
         number,
     })
 }
@@ -112,19 +126,16 @@ pub fn match_static_build_information(js: &str) -> Result<(String, u32), ScrapeE
     let caps = BUILD_INFO_SWC_RE
         .captures(js)
         .or_else(|| BUILD_INFO_RE.captures(js))
-        .ok_or(ScrapeError::MissingBuildInformation)?;
+        .ok_or(ScrapeError::MissingStaticBuildInformation)?;
 
     Ok((caps["hash"].to_owned(), caps["number"].parse().unwrap()))
 }
 
-/// Fetches the main application page for a branch.
+/// Request the main application page for the branch.
 ///
-/// This uses the default Isahc client.
-pub async fn fetch_branch_page(branch: discord::Branch) -> Result<String, ScrapeError> {
-    let url = branch.base().join("channels/@me").unwrap();
-
-    String::from_utf8(fetch_url_content(url).await?)
-        .map_err(|err| ScrapeError::Decoding(err.utf8_error()))
+/// This makes an HTTP request to `/channels/@me` with the default Isahc client.
+pub async fn request_branch_page(branch: discord::Branch) -> Result<IsahcResponse, NetworkError> {
+    get_async(branch.base().join("channels/@me").unwrap()).await
 }
 
 /// Extracts [`discord::FeAsset`]s from `<script>` and `<link>` tags on an HTML
