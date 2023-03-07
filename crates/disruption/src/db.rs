@@ -25,10 +25,6 @@ fn sqlite_now() -> u64 {
         .expect("it's too far into the future")
 }
 
-fn handle_message(conn: &mut rusqlite::Connection, DbCall(call): DbCall) {
-    call(conn);
-}
-
 impl Db {
     pub fn new(mut conn: rusqlite::Connection) -> Self {
         let (tx, mut rx) = tokio::sync::mpsc::channel::<DbCall>(32);
@@ -40,8 +36,8 @@ impl Db {
             conn.pragma_update(None, "foreign_keys", "ON")
                 .expect("failed to enable foreign keys");
 
-            while let Some(msg) = rx.recv().await {
-                handle_message(&mut conn, msg);
+            while let Some(DbCall(call)) = rx.recv().await {
+                call(&mut conn);
             }
         });
 
@@ -111,5 +107,13 @@ impl Db {
         .await??;
 
         Ok(())
+    }
+}
+
+impl Clone for Db {
+    fn clone(&self) -> Self {
+        Self {
+            sender: self.sender.clone(),
+        }
     }
 }
