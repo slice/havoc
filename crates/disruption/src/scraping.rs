@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 use havoc::discord::{Assets, Branch};
+use tracing::Instrument;
 
 use crate::{config::Config, db::Db, subscription::Subscription};
 use havoc::scrape;
@@ -11,9 +12,6 @@ pub async fn detect_changes_on_branch(
     branch: Branch,
     subscriptions: &[&Subscription],
 ) -> Result<()> {
-    let scrape_span = tracing::info_span!("scrape", ?branch);
-    let _enter = scrape_span.enter();
-
     let manifest = scrape::scrape_fe_manifest(branch).await?;
     let mut assets = Assets::with_assets(manifest.assets.clone());
 
@@ -25,6 +23,7 @@ pub async fn detect_changes_on_branch(
     let build = scrape::scrape_fe_build(manifest, &mut assets).await?;
     let publish = || -> Result<()> {
         for subscription in subscriptions {
+            // TODO: This should be asynchronous.
             crate::webhook::post_build_to_webhook(&build, *subscription)?;
         }
         Ok(())
@@ -59,7 +58,10 @@ pub async fn scrape_indefinitely(config: &Config, db: Db) -> Result<()> {
 
     loop {
         for (&branch, subscriptions) in &branches {
-            detect_changes_on_branch(&db, branch, subscriptions).await?;
+            let scrape_span = tracing::info_span!("scrape", ?branch);
+            detect_changes_on_branch(&db, branch, subscriptions)
+                .instrument(scrape_span)
+                .await?;
         }
 
         tracing::trace!("sleeping for {}ms", config.interval_milliseconds);

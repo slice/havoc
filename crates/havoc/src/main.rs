@@ -5,6 +5,7 @@ use havoc::artifact::Artifact;
 use havoc::discord::Assets;
 use havoc::dump::Dump;
 use havoc::scrape;
+use tracing::Instrument;
 
 fn app() -> App<'static> {
     App::new("havoc")
@@ -96,26 +97,29 @@ async fn dump_items(
 
         print!("dumping item \"{}\" ...", item);
 
-        let dump_span = tracing::info_span!("dumping", dumper = ?item);
-        let _span = dump_span.enter();
+        async {
+            let result = dumper
+                .dump(assets)
+                .await
+                .with_context(|| format!("failed to dump using dumper `{}`", item))?;
 
-        let result = dumper
-            .dump(assets)
-            .await
-            .with_context(|| format!("failed to dump using dumper `{}`", item))?;
+            let filename = result.filename();
 
-        let filename = result.filename();
+            let full_filename = format!("havoc_{}_{}", artifact.dump_prefix(), filename);
+            let dest = cwd.join(full_filename.clone());
 
-        let full_filename = format!("havoc_{}_{}", artifact.dump_prefix(), filename);
-        let dest = cwd.join(full_filename.clone());
+            print!("\twriting \"{}\" to {} ...", result.name, full_filename);
 
-        print!("\twriting \"{}\" to {} ...", result.name, full_filename);
+            result
+                .write(&dest)
+                .with_context(|| format!("failed to write dump result to disk at {:?}", dest))?;
 
-        result
-            .write(&dest)
-            .with_context(|| format!("failed to write dump result to disk at {:?}", dest))?;
+            println!(" done");
 
-        println!(" done");
+            anyhow::Ok(())
+        }
+        .instrument(tracing::info_span!("dumping", dumper = ?item))
+        .await?
     }
 
     Ok(())
