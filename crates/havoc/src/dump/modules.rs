@@ -36,8 +36,10 @@ impl WebpackModules {
             .iter()
             .map(|(module_id, module)| {
                 let span = module.func.span();
-                let module_beginning = span.lo.0 as usize;
-                let module_end = span.hi.0 as usize;
+
+                // swc's spans seem to start at one.
+                let module_beginning = span.lo.0 as usize - 1;
+                let module_end = span.hi.0 as usize - 1;
                 (*module_id, &entrypoint_js[module_beginning..module_end])
             })
             .collect();
