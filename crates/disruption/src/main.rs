@@ -1,11 +1,10 @@
-use std::sync::Arc;
-
 use anyhow::{Context, Result};
 use disruption::config::Config;
 use disruption::db::Db;
 
 async fn run(config: Config) -> Result<()> {
     let conn = rusqlite::Connection::open(&config.database_file_path)?;
+
     let db = Db::new(conn);
 
     let scraper_db = db.clone();
@@ -17,8 +16,8 @@ async fn run(config: Config) -> Result<()> {
     });
 
     let web_db = db.clone();
-    let state = Arc::new(disruption::api::State { db: web_db });
-    let router = disruption::api::create_router(state);
+    let state = disruption::api::AppState { db: web_db };
+    let router = disruption::api::create_router().with_state(state);
 
     tracing::info!(
         "binding http api server to {:?}",

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use axum::{
+    extract::State,
     http::StatusCode,
     response::{IntoResponse, Response},
     routing::get,
@@ -10,13 +11,14 @@ use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 
 use crate::db::Db;
 
-pub struct State {
+#[derive(Clone)]
+pub struct AppState {
     pub db: Db,
 }
 
 type AppResult<T> = Result<T, AppError>;
 
-async fn handler(Extension(state): Extension<Arc<State>>) -> AppResult<String> {
+async fn handler(State(state): State<AppState>) -> AppResult<String> {
     let two = state
         .db
         .call(|conn| conn.query_row("SELECT 1 + 1", [], |row| row.get::<_, i32>(0)))
@@ -46,15 +48,15 @@ where
     }
 }
 
-pub fn create_router(state: Arc<State>) -> Router<axum::body::Body> {
+pub fn create_router() -> Router<AppState> {
     let api_v1_routes = Router::new()
         .route("/ping", get(|| async { "\"pong\"" }))
         .route("/ping/database", get(handler));
 
     let trace_layer =
         TraceLayer::new_for_http().make_span_with(DefaultMakeSpan::default().include_headers(true));
+
     Router::new()
-        .nest("/api/v1", api_v1_routes)
-        .layer(Extension(state))
         .layer(trace_layer)
+        .nest("/api/v1", api_v1_routes)
 }
