@@ -60,7 +60,7 @@ pub fn post_build_to_webhook(build: &discord::FeBuild, subscription: &Subscripti
         "timestamp": utc_timestamp
     });
 
-    let payload = json!({ "username": "disruption", "embeds": [embed] });
+    let payload = json!({ "username": "watchdog", "embeds": [embed] });
 
     tracing::debug!(?payload, "webhook payload");
 
@@ -68,7 +68,7 @@ pub fn post_build_to_webhook(build: &discord::FeBuild, subscription: &Subscripti
         .header("content-type", "application/json")
         .header(
             "user-agent",
-            "disruption/0.0 (https://github.com/slice/havoc)",
+            "watchdog/0.0 (https://github.com/slice/havoc)",
         )
         .body(serde_json::to_vec(&payload)?)?
         .send()?;

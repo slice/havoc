@@ -30,8 +30,8 @@
             };
         in rec {
           packages.havoc = mkPackage "havoc";
-          packages.disruption = mkPackage "disruption";
-          apps.disruption = utils.lib.mkApp { drv = packages.disruption; };
+          packages.watchdog = mkPackage "watchdog";
+          apps.watchdog = utils.lib.mkApp { drv = packages.watchdog; };
           devShell = pkgs.mkShell {
             nativeBuildInputs = [ pkgs.rustc pkgs.cargo pkgs.rust-analyzer ];
           };
@@ -40,19 +40,19 @@
       nixosModule = { config, lib, pkgs, ... }:
         with lib;
         let
-          cfg = config.services.disruption;
-          pkg = self.packages.${pkgs.system}.disruption;
+          cfg = config.services.watchdog;
+          pkg = self.packages.${pkgs.system}.watchdog;
           tomlConfigPath = (pkgs.formats.toml { }).generate "config.toml" ({
             interval_milliseconds = cfg.intervalMs;
-            state_file_path = "/var/lib/disruption/state.json";
+            state_file_path = "/var/lib/watchdog/state.json";
             subscriptions = builtins.map ({ branches, discordWebhookUrl }: {
               inherit branches;
               discord_webhook_url = discordWebhookUrl;
             }) cfg.subscriptions;
           });
         in {
-          options.services.disruption = {
-            enable = mkEnableOption "disruption";
+          options.services.watchdog = {
+            enable = mkEnableOption "watchdog";
 
             intervalMs = mkOption {
               type = types.ints.positive;
@@ -82,17 +82,17 @@
           };
 
           config.systemd = mkIf cfg.enable {
-            services.disruption = rec {
-              environment = { RUST_LOG = "warn,havoc=debug,disruption=debug"; };
+            services.watchdog = rec {
+              environment = { RUST_LOG = "warn,havoc=debug,watchdog=debug"; };
               serviceConfig = {
-                User = "disruption";
-                Group = "disruption";
+                User = "watchdog";
+                Group = "watchdog";
                 DynamicUser = true;
-                StateDirectory = "disruption";
+                StateDirectory = "watchdog";
               };
               after = [ "network-online.target" ];
               wantedBy = [ "network-online.target" ];
-              script = "${pkg}/bin/disruption ${tomlConfigPath}";
+              script = "${pkg}/bin/watchdog ${tomlConfigPath}";
             };
           };
         };

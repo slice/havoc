@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use disruption::config::Config;
-use disruption::db::Db;
+use watchdog::config::Config;
+use watchdog::db::Db;
 
 async fn run(config: Config) -> Result<()> {
     let conn = rusqlite::Connection::open(&config.database_file_path)?;
@@ -10,14 +10,14 @@ async fn run(config: Config) -> Result<()> {
     let scraper_db = db.clone();
     let scraper_config = config.clone();
     tokio::spawn(async move {
-        disruption::scraping::scrape_indefinitely(&scraper_config, scraper_db)
+        watchdog::scraping::scrape_indefinitely(&scraper_config, scraper_db)
             .await
             .expect("scraper crashed");
     });
 
     let web_db = db.clone();
-    let state = disruption::api::AppState { db: web_db };
-    let router = disruption::api::create_router().with_state(state);
+    let state = watchdog::api::AppState { db: web_db };
+    let router = watchdog::api::create_router().with_state(state);
 
     tracing::info!(
         "binding http api server to {:?}",
@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
     let config_file_path = match std::env::args().nth(1) {
         Some(path) => path,
         None => {
-            eprintln!("usage: disruption <path/to/config.toml>");
+            eprintln!("usage: watchdog <path/to/config.toml>");
             std::process::exit(1);
         }
     };

@@ -1,6 +1,6 @@
 /target
 
-/disruption.toml
+/watchdog.toml
 /config.toml
 /state.json
 /havoc_*.json

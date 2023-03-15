@@ -1,11 +1,11 @@
 [package]
-name = "disruption"
+name = "watchdog"
 version = "0.1.0"
 authors = ["slice <tinyslices@gmail.com>"]
 edition = "2021"
 
 [[bin]]
-name = "disruption"
+name = "watchdog"
 
 [dependencies]
 anyhow = "1.0.55"

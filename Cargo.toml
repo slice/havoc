@@ -2,5 +2,5 @@
 
 members = [
   "crates/havoc",
-  "crates/disruption"
+  "crates/watchdog"
 ]
