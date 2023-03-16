@@ -84,8 +84,8 @@ pub fn walk_classes_chunk(script: &ast::Script) -> Result<ClassModuleMap, ParseE
 
     let total_mappings: usize = visitor
         .modules
-        .iter()
-        .map(|(_, mappings)| mappings.len())
+        .values()
+        .map(|mappings| mappings.len())
         .sum();
 
     tracing::info!(

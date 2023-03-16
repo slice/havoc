@@ -24,7 +24,7 @@ pub async fn detect_changes_on_branch(
     let publish = || -> Result<()> {
         for subscription in subscriptions {
             // TODO: This should be asynchronous.
-            crate::webhook::post_build_to_webhook(&build, *subscription)?;
+            crate::webhook::post_build_to_webhook(&build, subscription)?;
         }
         Ok(())
     };
