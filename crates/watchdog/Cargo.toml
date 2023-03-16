@@ -19,6 +19,6 @@ chrono = "0.4"
 chrono-tz = "0.6"
 toml = "0.5"
 tokio = { version = "1.21.2", features = ["full"] }
-rusqlite = "0.28.0"
 axum = "0.6.10"
 tower-http = { version = "0.3.4", features = ["trace"] }
+sqlx = { version = "0.6", features = [ "runtime-tokio-native-tls", "postgres", "chrono" ] }

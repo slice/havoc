@@ -3,9 +3,14 @@ use watchdog::config::Config;
 use watchdog::db::Db;
 
 async fn run(config: Config) -> Result<()> {
-    let conn = rusqlite::Connection::open(&config.database_file_path)?;
+    tracing::info!("connecting to postgres: {}", config.postgres.url);
 
-    let db = Db::new(conn);
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(config.postgres.max_connections)
+        .connect(&config.postgres.url)
+        .await?;
+
+    let db = Db::new(pool);
 
     let scraper_db = db.clone();
     let scraper_config = config.clone();

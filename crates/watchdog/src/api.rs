@@ -1,12 +1,11 @@
-use std::sync::Arc;
-
 use axum::{
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Response},
     routing::get,
-    Extension, Router,
+    Router,
 };
+use sqlx::Row;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 
 use crate::db::Db;
@@ -19,10 +18,10 @@ pub struct AppState {
 type AppResult<T> = Result<T, AppError>;
 
 async fn handler(State(state): State<AppState>) -> AppResult<String> {
-    let two = state
-        .db
-        .call(|conn| conn.query_row("SELECT 1 + 1", [], |row| row.get::<_, i32>(0)))
-        .await??;
+    let two: i32 = sqlx::query("SELECT 1 + 1")
+        .fetch_one(&state.db.pool)
+        .await?
+        .get(0);
 
     Ok(format!("1 + 1 = {}", two))
 }
