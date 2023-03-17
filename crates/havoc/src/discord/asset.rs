@@ -42,10 +42,16 @@ pub struct FeAsset {
 }
 
 impl FeAsset {
+    /// Returns the combined name and extension of this asset separated by a
+    /// period, akin to a filename.
+    pub fn filename(&self) -> String {
+        format!("{}.{}", self.name, self.typ.ext())
+    }
+
     /// Returns a [`Url`] to this asset.
     pub fn url(&self) -> Url {
         let base = Url::parse("https://discord.com/assets/").unwrap();
-        base.join(&format!("{}.{}", self.name, self.typ.ext()))
+        base.join(&self.filename())
             .expect("failed to construct asset url")
     }
 }

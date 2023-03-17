@@ -27,17 +27,26 @@ pub enum RootScript {
 }
 
 impl RootScript {
-    /// Returns an index index into the script asset list that corresponds to this root script.
-    /// This is another fragile assumption that could change at any time.
-    fn asset_index(&self) -> usize {
+    /// Returns the assumed ordering of the root scripts in the application HTML.
+    ///
+    /// This is a fragile assumption that could change at any time.
+    pub fn assumed_ordering() -> [RootScript; 4] {
         use RootScript::*;
 
-        match self {
-            ChunkLoader => 0,
-            Classes => 1,
-            Vendor => 2,
-            Entrypoint => 3,
-        }
+        [ChunkLoader, Classes, Vendor, Entrypoint]
+    }
+
+    /// Using the assumed ordering of the root scripts in the application HTML,
+    /// returns the index into that ordering for this root script.
+    ///
+    /// This is a fragile assumption that could change at any time.
+    pub fn asset_index(&self) -> usize {
+        Self::assumed_ordering()
+            .iter()
+            .position(|kind| kind == self)
+            .expect(
+                "invariant violation: RootScript::assumed_ordering doesn't contain all variants",
+            )
     }
 }
 

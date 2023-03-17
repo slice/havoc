@@ -1,6 +1,6 @@
 BEGIN;
 
--- Detected frontend builds.
+-- Every frontend build that has been witnessed.
 CREATE TABLE IF NOT EXISTS detected_builds (
   -- A number that seemingly increments for every build Discord creates,
   -- present in the client scripts.
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS detected_builds (
   -- appear first.
   --
   -- When detecting a build for the first time, however, it must be inserted
-  -- into this table before it can be inserted into
+  -- into this table before it may be inserted into
   -- `detected_builds_on_branches`.
 );
 
@@ -71,7 +71,9 @@ CREATE TABLE IF NOT EXISTS detected_assets (
   -- reuse an asset between builds nor have I verified that they have never
   -- done this, but we shouldn't blow up if they decide to do that in the
   -- future or have already done so.
-  name TEXT NOT NULL
+  name TEXT NOT NULL,
+
+  UNIQUE (build_id, name)
 );
 
 -- Instances of a Discord build detected on a specific branch.

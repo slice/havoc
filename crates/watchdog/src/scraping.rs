@@ -36,6 +36,7 @@ pub async fn detect_changes_on_branch(
     );
 
     db.detected_build_change_on_branch(&build, branch).await?;
+    db.detected_assets(&build, &assets).await?;
 
     publish().context("failed to publish")?;
 
