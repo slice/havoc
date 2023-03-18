@@ -25,6 +25,7 @@
                 darwin.apple_sdk.frameworks.SystemConfiguration
                 libiconv
               ];
+            doCheck = false;
           };
         in rec {
           packages.havoc = craneLib.buildPackage
@@ -166,6 +167,9 @@
               enable = mkDefault true;
               authentication = ''
                 local ${cfg.localDatabaseName} ${cfg.user} trust
+
+                # sqlx uses TCP/IP to connect.
+                host ${cfg.localDatabaseName} ${cfg.user} localhost trust
               '';
               ensureDatabases = [ cfg.localDatabaseName ];
               ensureUsers = [{
