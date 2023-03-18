@@ -42,9 +42,14 @@
         let
           cfg = config.services.watchdog;
           pkg = self.packages.${pkgs.system}.watchdog;
+          localDatabase = cfg.postgresUrl == "local";
           tomlConfigPath = (pkgs.formats.toml { }).generate "config.toml" ({
             interval_milliseconds = cfg.intervalMs;
-            state_file_path = "/var/lib/watchdog/state.json";
+            http_api_server_bind_address = cfg.bind;
+            postgres.url = if localDatabase then
+              "postgres://${cfg.user}@localhost/${cfg.localDatabaseName}"
+            else
+              cfg.databaseUrl;
             subscriptions = builtins.map ({ branches, discordWebhookUrl }: {
               inherit branches;
               discord_webhook_url = discordWebhookUrl;
@@ -58,8 +63,51 @@
               type = types.ints.positive;
               default = 1000 * 60 * 5;
               example = "300000";
-              description =
+              description = mdDoc
                 "Milliseconds to sleep between scrapes. Please be courteous and set this to a high value.";
+            };
+
+            user = mkOption {
+              type = types.str;
+              default = "watchdog";
+              description = mdDoc ''
+                The user for watchdog to run under.
+
+                This is also used as the name of the Postgres user, if the
+                database is being created locally.
+              '';
+            };
+
+            group = mkOption {
+              type = types.str;
+              default = "watchdog";
+              description = mdDoc "The group for watchdog to run under.";
+            };
+
+            bind = mkOption {
+              type = types.str;
+              default = "127.0.0.1:6700";
+              description = mdDoc ''
+                The address to bind the HTTP API server to.
+              '';
+            };
+
+            postgresUrl = mkOption {
+              type = types.str;
+              default = "local";
+              description = mdDoc ''
+                The URL of the Postgres database to connect to. Pass `local`
+                to create the database locally.
+              '';
+            };
+
+            localDatabaseName = mkOption {
+              type = types.str;
+              default = "watchdog";
+              description = mdDoc ''
+                The name of the Postgres database to create, when creating
+                locally.
+              '';
             };
 
             subscriptions = with types;
@@ -81,18 +129,44 @@
               };
           };
 
-          config.systemd = mkIf cfg.enable {
-            services.watchdog = rec {
-              environment = { RUST_LOG = "warn,havoc=debug,watchdog=debug"; };
-              serviceConfig = {
-                User = "watchdog";
-                Group = "watchdog";
-                DynamicUser = true;
-                StateDirectory = "watchdog";
+          config = mkIf cfg.enable {
+            systemd = {
+              services.watchdog = rec {
+                environment = { RUST_LOG = "warn,havoc=debug,watchdog=debug"; };
+                serviceConfig = {
+                  User = cfg.user;
+                  Group = cfg.group;
+                  StateDirectory = "watchdog";
+                };
+                after = [ "network-online.target" ]
+                  ++ (optional localDatabase "postgresql.service");
+                wantedBy = [ "network-online.target" ];
+                script = "${pkg}/bin/watchdog ${tomlConfigPath}";
               };
-              after = [ "network-online.target" ];
-              wantedBy = [ "network-online.target" ];
-              script = "${pkg}/bin/watchdog ${tomlConfigPath}";
+            };
+
+            users = {
+              users = mkIf (cfg.user == "watchdog") {
+                watchdog = {
+                  group = cfg.group;
+                  isSystemUser = true;
+                };
+              };
+
+              groups = mkIf (cfg.group == "watchdog") { watchdog = { }; };
+            };
+
+            services.postgresql = mkIf (cfg.enable && localDatabase) {
+              enable = mkDefault true;
+              authentication = ''
+                local ${cfg.localDatabaseName} ${cfg.user} trust
+              '';
+              ensureDatabases = [ cfg.localDatabaseName ];
+              ensureUsers = [{
+                name = cfg.user;
+                ensurePermissions."DATABASE \"${cfg.localDatabaseName}\"" =
+                  "ALL PRIVILEGES";
+              }];
             };
           };
         };
