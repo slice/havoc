@@ -3,36 +3,42 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    naersk.url = "github:nix-community/naersk";
-    naersk.inputs.nixpkgs.follows = "nixpkgs";
+    crane.url = "github:ipetkov/crane";
+    crane.inputs.nixpkgs.follows = "nixpkgs";
     utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, naersk, utils }:
+  outputs = { self, nixpkgs, crane, utils }:
     let
       packages = utils.lib.eachDefaultSystem (system:
         let
           pkgs = nixpkgs.legacyPackages."${system}";
-          naersk-lib = naersk.lib."${system}";
-          naerskBuildPackage = args:
-            naersk-lib.buildPackage (args // {
-              nativeBuildInputs = [ pkgs.pkg-config pkgs.openssl ]
-                ++ nixpkgs.lib.optional pkgs.stdenv.isDarwin [
-                  # needed by curl-sys on darwin
-                  pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
-                ];
-            });
-          mkPackage = n:
-            naerskBuildPackage {
-              pname = n;
-              root = ./.;
-              targets = [ n ];
-            };
+          craneLib = crane.lib.${system};
+
+          commonArgs = with pkgs; {
+            pname = "havoc";
+            version = "0.0.0";
+            src = craneLib.cleanCargoSource ./.;
+            nativeBuildInputs = [ pkg-config openssl ]
+              ++ lib.optional stdenv.isDarwin [
+                # needed by curl-sys on darwin
+                darwin.apple_sdk.frameworks.SystemConfiguration
+                libiconv
+              ];
+          };
         in rec {
-          packages.havoc = mkPackage "havoc";
-          packages.watchdog = mkPackage "watchdog";
-          apps.watchdog = utils.lib.mkApp { drv = packages.watchdog; };
+          packages.havoc = craneLib.buildPackage
+            (commonArgs // { cargoExtraArgs = "-p havoc"; });
+          packages.watchdog = craneLib.buildPackage
+            (commonArgs // { cargoExtraArgs = "--bin watchdog"; });
+
+          apps.watchdog = utils.lib.mkApp {
+            pname = "watchdog";
+            drv = packages.watchdog;
+          };
+
           devShell = pkgs.mkShell {
+            inputsFrom = [ packages.havoc packages.watchdog ];
             nativeBuildInputs = [ pkgs.rustc pkgs.cargo pkgs.rust-analyzer ];
           };
         });
