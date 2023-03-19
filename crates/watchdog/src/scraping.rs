@@ -67,6 +67,6 @@ pub async fn scrape_indefinitely(config: &Config, db: Db) -> Result<()> {
 
         tracing::trace!("sleeping for {}ms", config.interval_milliseconds);
         let duration = std::time::Duration::from_millis(config.interval_milliseconds);
-        std::thread::sleep(duration);
+        tokio::time::sleep(duration).await;
     }
 }
