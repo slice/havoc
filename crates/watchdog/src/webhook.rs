@@ -1,13 +1,14 @@
-use std::io::Read;
-
 use anyhow::Result;
 use chrono::Utc;
 use havoc::discord::{self, FeAsset, FeAssetType};
-use isahc::{Request, RequestExt};
+use isahc::{AsyncReadResponseExt, Request, RequestExt};
 
 use crate::subscription::Subscription;
 
-pub fn post_build_to_webhook(build: &discord::FeBuild, subscription: &Subscription) -> Result<()> {
+pub async fn post_build_to_webhook(
+    build: &discord::FeBuild,
+    subscription: &Subscription,
+) -> Result<()> {
     let publish_span =
         tracing::info_span!("publish", %build.number, %build.manifest.branch, ?subscription);
     let _enter = publish_span.enter();
@@ -64,20 +65,19 @@ pub fn post_build_to_webhook(build: &discord::FeBuild, subscription: &Subscripti
 
     tracing::debug!(?payload, "webhook payload");
 
-    let response = Request::post(&subscription.discord_webhook_url)
+    let mut response = Request::post(&subscription.discord_webhook_url)
         .header("content-type", "application/json")
         .header(
             "user-agent",
             "watchdog/0.0 (https://github.com/slice/havoc)",
         )
         .body(serde_json::to_vec(&payload)?)?
-        .send()?;
+        .send_async()
+        .await?;
 
     tracing::info!("received {} from discord", response.status());
 
-    let mut body_string = String::new();
-    let _ = response.into_body().read_to_string(&mut body_string)?;
-
+    let body_string = response.text().await?;
     tracing::info!("discord response body: {}", body_string);
 
     Ok(())

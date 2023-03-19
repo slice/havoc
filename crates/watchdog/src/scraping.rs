@@ -21,13 +21,6 @@ pub async fn detect_changes_on_branch(
     }
 
     let build = scrape::scrape_fe_build(manifest, &mut assets).await?;
-    let publish = || -> Result<()> {
-        for subscription in subscriptions {
-            // TODO: This should be asynchronous.
-            crate::webhook::post_build_to_webhook(&build, subscription)?;
-        }
-        Ok(())
-    };
 
     tracing::info!(
         "detected new build (branch: {}, number: {})",
@@ -38,7 +31,11 @@ pub async fn detect_changes_on_branch(
     db.detected_build_change_on_branch(&build, branch).await?;
     db.detected_assets(&build, &assets).await?;
 
-    publish().context("failed to publish")?;
+    for subscription in subscriptions {
+        crate::webhook::post_build_to_webhook(&build, subscription)
+            .await
+            .context("failed to publish")?;
+    }
 
     Ok(())
 }
