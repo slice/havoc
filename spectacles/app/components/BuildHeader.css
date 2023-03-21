@@ -1,0 +1,55 @@
+.build-header {
+  padding: 2rem;
+  margin: 0 -2rem;
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  background-image: linear-gradient(
+    to bottom,
+    transparent 50%,
+    hsl(var(--hue) 70% 50% / 15%) 100%
+  );
+  border-bottom: solid 1px hsl(var(--hue) 30% 35%);
+}
+
+.build-header .build-branch {
+  color: hsl(var(--hue) 40% 75%);
+}
+
+.build-header.build-canary {
+  --hue: var(--c-canary-hue);
+}
+
+.build-header.build-ptb {
+  --hue: var(--c-ptb-hue);
+}
+
+.build-header.build-stable {
+  --hue: var(--c-stable-hue);
+}
+
+.build-header .build-metadata {
+  margin-left: auto;
+  font-family: var(--condensed-sans-serif);
+  opacity: 0.7;
+  font-size: 140%;
+}
+
+.build-header .build-absolute-timestamp {
+  font-size: 80%;
+}
+
+.build-header .build-timestamps {
+  text-align: right;
+}
+
+.build-header .build-name {
+  color: #ddd;
+  font-size: 4rem;
+  line-height: 1;
+  font-weight: bold;
+}
+
+.build-header .build-number {
+  font-size: 80%;
+}

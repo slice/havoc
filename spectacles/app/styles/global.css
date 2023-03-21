@@ -1,0 +1,74 @@
+:root {
+  --system-sans-serif: -apple-system, blinkmacsystemfont, 'Source Sans Pro',
+    'Lato', 'Arimo', 'Droid Sans', 'Noto Sans', 'DejaVu Sans', 'Segoe UI',
+    system-ui, sans-serif;
+  --sans-serif: 'PT Sans';
+  --condensed-sans-serif: 'PT Sans Narrow';
+  --expanded-sans-serif: 'PT Sans Caption';
+
+  --c-page-background: #111;
+  --c-page-foreground: #b0b0b0;
+  --c-canary-hue: 35;
+  --c-ptb-hue: 220;
+  --c-stable-hue: 120;
+}
+
+html {
+  font-family: var(--sans-serif), var(--system-sans-serif);
+  font-size: 16px;
+  line-height: 1.4;
+  background-color: var(--c-page-background);
+  color: var(--c-page-foreground);
+}
+
+body {
+  margin: 0;
+}
+
+.main-header {
+  border-bottom: solid 1px #3a3a3a;
+  display: flex;
+  flex-flow: row nowrap;
+  column-gap: 1rem;
+  align-items: center;
+  padding: 0.5rem 2rem;
+}
+
+.main-header a {
+  color: inherit;
+  font-family: var(--expanded-sans-serif);
+  text-decoration: none;
+}
+
+.main-header .brand {
+  margin: 0;
+  font-size: 2rem;
+  color: #fff;
+  font-family: var(--condensed-sans-serif);
+  font-weight: bold;
+}
+
+h1 {
+  font-family: var(--expanded-sans-serif);
+  font-weight: normal;
+  font-variant: all-small-caps;
+  line-height: 1;
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: baseline;
+}
+
+.emphasis-badge {
+  font-size: 60%;
+  background-color: var(--c-page-foreground);
+  color: var(--c-page-background);
+  padding: 0.2em 0.5em;
+  margin-left: 0.5rem;
+  border-radius: 0.5rem;
+  font-variant: initial;
+  opacity: 0.7;
+}
+
+main {
+  margin: 2rem;
+}
