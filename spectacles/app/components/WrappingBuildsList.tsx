@@ -31,6 +31,7 @@ export default function WrappingBuildsList(props: {
               `build-${build.branch}`,
               isCurrent && 'build-current'
             )}
+            key={build.detectedAt.getTime()}
           >
             {build.number}
           </div>

@@ -92,12 +92,18 @@ export default function Index() {
         <h2>
           Latest Builds {/*<span className="emphasis-badge">live</span>*/}
         </h2>
-        {appBranches.map((branch) => (
-          <BuildHeader branch={branch} build={latest[branch]} key={branch} />
-        ))}
+        {latest.ptb.number === latest.canary.number ? (
+          <BuildHeader branch="dual" build={latest.canary} />
+        ) : (
+          <>
+            <BuildHeader branch={Branch.Canary} build={latest.canary} />
+            <BuildHeader branch={Branch.PTB} build={latest.ptb} />
+          </>
+        )}
+        <BuildHeader branch={Branch.Stable} build={latest.stable} />
       </section>
       <section className="historical-builds">
-        <h2>Recent Builds</h2>
+        <h2 style={{ marginTop: '2rem' }}>Recent Builds</h2>
         <div className="historical-builds-calendar">
           {calendarized.map(({ day, builds }) => (
             <React.Fragment key={day.toUTCString()}>

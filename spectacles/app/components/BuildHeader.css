@@ -6,21 +6,50 @@
   align-items: center;
   background-image: linear-gradient(
     to bottom,
-    transparent 50%,
-    hsl(var(--hue) 70% 50% / 15%) 100%
+    hsl(var(--hue) 70% 50% / 0%),
+    hsl(var(--hue) 70% 50% / 15%)
   );
   border-bottom: solid 1px hsl(var(--hue) 30% 35%);
 }
 
-.build-header .build-branch {
+.build-header:not(.build-dual) .build-branch,
+.build-header .build-branch-dual {
   color: hsl(var(--hue) 40% 75%);
+}
+
+.build-header.build-dual {
+  background-image: linear-gradient(
+    to bottom,
+    hsl(var(--c-canary-hue) 70% 50% / 15%),
+    hsl(var(--c-ptb-hue) 70% 50% / 15%)
+  );
+  border-top: solid 1px hsl(var(--c-canary-hue) 30% 35%);
+}
+
+.build-header.build-dual .build-name {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: last baseline;
+  column-gap: 0.5rem;
+}
+
+.build-header .unemphasized {
+  color: #ddd;
+  font-weight: normal;
+}
+
+.build-header.build-dual .build-branch {
+  display: flex;
+  flex-flow: column nowrap;
+  row-gap: 1rem;
 }
 
 .build-header.build-canary {
   --hue: var(--c-canary-hue);
 }
 
-.build-header.build-ptb {
+.build-header.build-ptb,
+.build-header.build-dual {
   --hue: var(--c-ptb-hue);
 }
 
