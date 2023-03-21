@@ -5,14 +5,11 @@ use isahc::{AsyncReadResponseExt, Request, RequestExt};
 
 use crate::subscription::Subscription;
 
+#[tracing::instrument(skip_all, fields(%build.manifest.branch, %build.number, ?subscription))]
 pub async fn post_build_to_webhook(
     build: &discord::FeBuild,
     subscription: &Subscription,
 ) -> Result<()> {
-    let publish_span =
-        tracing::info_span!("publish", %build.number, %build.manifest.branch, ?subscription);
-    let _enter = publish_span.enter();
-
     use serde_json::json;
 
     let assets = &build.manifest.assets;

@@ -73,11 +73,9 @@ pub struct WebpackModule<'a> {
 }
 
 /// Walks a generic Webpack chunk that contains modules.
+#[tracing::instrument(skip_all)]
 pub fn walk_webpack_chunk(script: &ast::Script) -> Result<WebpackChunk, ParseError> {
     use ParseError::MissingNode;
-
-    let span = tracing::info_span!("webpack_chunk_walking");
-    let _enter = span.enter();
 
     // NOTE: This is the format for `webpackJsonp`/`webpackChunk`:
     //
