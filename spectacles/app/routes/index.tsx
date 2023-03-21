@@ -101,7 +101,13 @@ export default function Index() {
         <div className="historical-builds-calendar">
           {calendarized.map(({ day, builds }) => (
             <React.Fragment key={day.toUTCString()}>
-              <h3>{format(day, 'E, MMM d')}</h3>
+              <h3>
+                {format(day, 'E, MMM d')}
+                <br />
+                <small>
+                  {builds.length} build{builds.length === 1 ? '' : 's'}
+                </small>
+              </h3>
               <WrappingBuildsList latestBuilds={latest} builds={builds} />
             </React.Fragment>
           ))}

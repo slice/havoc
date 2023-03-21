@@ -9,3 +9,9 @@
   text-align: right;
   margin: 0;
 }
+
+.historical-builds-calendar h3 small {
+  font-weight: normal;
+  font-size: 80%;
+  opacity: 0.8;
+}
