@@ -14,10 +14,11 @@ export const appBranches: Exclude<Branch, Branch.Development>[] = [
 
 /** A Discord frontend build. */
 export type Build = {
-  buildId: string;
-  buildNumber: number;
-  detectedAt: Date;
+  id: string;
+  number: number;
 };
+
+export type DetectedBuild = Build & { branch: Branch; detectedAt: Date };
 
 export function humanFriendlyBranchName(branch: Branch): string {
   switch (branch) {

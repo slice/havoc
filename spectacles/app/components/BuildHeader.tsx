@@ -1,7 +1,10 @@
 import { format, formatDistance } from 'date-fns';
-import { Branch, Build, humanFriendlyBranchName } from '~/build';
+import { Branch, DetectedBuild, humanFriendlyBranchName } from '~/build';
 
-export default function BuildHeader(props: { branch: Branch; build: Build }) {
+export default function BuildHeader(props: {
+  branch: Branch;
+  build: DetectedBuild;
+}) {
   const date = new Date(props.build.detectedAt);
   const ago = formatDistance(date, new Date());
   const absolute = format(date, 'E, MMM d y');
@@ -12,7 +15,7 @@ export default function BuildHeader(props: { branch: Branch; build: Build }) {
         <span className="build-branch">
           {humanFriendlyBranchName(props.branch)}
         </span>{' '}
-        <span className="build-number">{props.build.buildNumber}</span>
+        <span className="build-number">{props.build.number}</span>
       </div>
       <div className="build-metadata">
         <div className="build-timestamps">

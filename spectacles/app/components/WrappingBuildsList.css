@@ -1,0 +1,26 @@
+.wrapping-builds-list {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 0.5rem;
+}
+
+.wrapping-builds-list .build {
+  font-family: var(--condensed-sans-serif);
+  padding: 0.1em 0.2em;
+  background: hsl(var(--hue) 40% 20%);
+  opacity: 0.4;
+  border-radius: 0.25rem;
+  line-height: 1.2;
+}
+
+.wrapping-builds-list .build.build-collapsed {
+  background-image: linear-gradient(
+    to right,
+    hsl(var(--c-canary-hue) 40% 20%) 50%,
+    hsl(var(--c-ptb-hue) 40% 20%) 50% 100%
+  );
+}
+
+.wrapping-builds-list .build.build-current {
+  opacity: unset;
+}

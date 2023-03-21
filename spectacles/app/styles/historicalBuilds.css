@@ -1,0 +1,11 @@
+.historical-builds-calendar {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 1rem;
+  align-items: baseline;
+}
+
+.historical-builds-calendar h3 {
+  text-align: right;
+  margin: 0;
+}

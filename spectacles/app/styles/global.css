@@ -13,6 +13,18 @@
   --c-stable-hue: 120;
 }
 
+.build-canary {
+  --hue: var(--c-canary-hue);
+}
+
+.build-ptb {
+  --hue: var(--c-ptb-hue);
+}
+
+.build-stable {
+  --hue: var(--c-stable-hue);
+}
+
 html {
   font-family: var(--sans-serif), var(--system-sans-serif);
   font-size: 16px;
@@ -48,7 +60,16 @@ body {
   font-weight: bold;
 }
 
-h1 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 1rem 0;
+}
+
+h2 {
   font-family: var(--expanded-sans-serif);
   font-weight: normal;
   font-variant: all-small-caps;
