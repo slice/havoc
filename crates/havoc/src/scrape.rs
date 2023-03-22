@@ -1,7 +1,9 @@
 use std::io;
 use std::str::Utf8Error;
+use std::time::Duration;
 
-use isahc::AsyncReadResponseExt;
+use isahc::prelude::Configurable;
+use isahc::{AsyncReadResponseExt, RequestExt};
 use regex::Regex;
 use thiserror::Error;
 use url::Url;
@@ -32,8 +34,11 @@ pub enum ScrapeError {
 
 #[derive(Error, Debug)]
 pub enum NetworkError {
+    #[error("isahc error")]
+    Isahc(#[from] isahc::error::Error),
+
     #[error("http error")]
-    Http(#[from] isahc::error::Error),
+    Http(#[from] http::Error),
 
     #[error("encountered malformed HTTP header")]
     MalforedHeader,
@@ -47,7 +52,13 @@ type IsahcResponse = http::Response<isahc::AsyncBody>;
 pub(crate) async fn get_async(url: Url) -> Result<IsahcResponse, NetworkError> {
     tracing::info!("GET {}", url.as_str());
 
-    Ok(isahc::get_async(url.as_str()).await?)
+    let response = isahc::Request::get(url.as_str())
+        .timeout(Duration::from_secs(10))
+        .body(())?
+        .send_async()
+        .await?;
+
+    Ok(response)
 }
 
 /// Scrapes a [`discord::FeManifest`] for a specific [`discord::Branch`].
