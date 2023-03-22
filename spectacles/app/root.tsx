@@ -12,7 +12,12 @@ import {
 import rootStyles from '~/styles/global.css';
 
 export function links(): LinkDescriptor[] {
-  return [{ rel: 'stylesheet', href: rootStyles }];
+  const favicon =
+    process.env.NODE_ENV === 'production' ? 'favicon.png' : 'favicon_dev.png';
+  return [
+    { rel: 'stylesheet', href: rootStyles },
+    { rel: 'icon', type: 'image/png', href: favicon },
+  ];
 }
 
 export const meta: MetaFunction = () => ({
