@@ -8,7 +8,6 @@ import buildHeaderStyles from '~/components/BuildHeader.css';
 import historicalBuildsStyles from '~/styles/historicalBuilds.css';
 import WrappingBuildsListStyles from '~/components/WrappingBuildsList.css';
 import pg from '~/db.server';
-import { format } from 'date-fns';
 import WrappingBuildsList from '~/components/WrappingBuildsList';
 
 export const links: LinksFunction = () => [
@@ -56,6 +55,12 @@ function deserializeBuild(
 ): DetectedBuild {
   return { ...build, detectedAt: new Date(build.detectedAt) };
 }
+
+const dateFormatter = new Intl.DateTimeFormat(undefined, {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+});
 
 export default function Index() {
   const data = useLoaderData<typeof loader>();
@@ -107,8 +112,8 @@ export default function Index() {
         <div className="historical-builds-calendar">
           {calendarized.map(({ day, builds }) => (
             <React.Fragment key={day.toUTCString()}>
-              <h3>
-                {format(day, 'E, MMM d')}
+              <h3 title={day.toLocaleString()} suppressHydrationWarning>
+                {dateFormatter.format(day)}
                 <br />
                 <small>
                   {builds.length} build{builds.length === 1 ? '' : 's'}

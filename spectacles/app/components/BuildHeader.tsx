@@ -1,6 +1,13 @@
 import classNames from 'classnames';
-import { format, formatDistance } from 'date-fns';
+import { formatDistance } from 'date-fns';
 import { Branch, DetectedBuild, humanFriendlyBranchName } from '~/build';
+
+const dateFormatter = new Intl.DateTimeFormat(undefined, {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
 
 export default function BuildHeader(props: {
   branch: Branch | 'dual';
@@ -9,7 +16,6 @@ export default function BuildHeader(props: {
   const date = new Date(props.build.detectedAt);
   const isDual = props.branch === 'dual';
   const ago = formatDistance(date, new Date());
-  const absolute = format(date, 'E, MMM d y');
 
   return (
     <div className={classNames('build-header', `build-${props.branch}`)}>
@@ -33,7 +39,9 @@ export default function BuildHeader(props: {
           <div className="build-relative-timestamp">
             detected <strong>{ago}</strong> ago
           </div>
-          <div className="build-absolute-timestamp">{absolute}</div>
+          <div className="build-absolute-timestamp" suppressHydrationWarning>
+            {dateFormatter.format(date)}
+          </div>
         </div>
       </div>
     </div>

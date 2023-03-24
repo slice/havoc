@@ -2,6 +2,10 @@ import classNames from 'classnames';
 import { Branch, DetectedBuild } from '~/build';
 import { collapseBranches } from '~/collapsing';
 
+const timeFormatter = new Intl.DateTimeFormat(undefined, {
+  timeStyle: 'long',
+});
+
 export default function WrappingBuildsList(props: {
   builds: DetectedBuild[];
   latestBuilds?: { [branch in Branch]?: DetectedBuild };
@@ -31,6 +35,8 @@ export default function WrappingBuildsList(props: {
               `build-${build.branch}`,
               isCurrent && 'build-current'
             )}
+            title={timeFormatter.format(build.detectedAt)}
+            suppressHydrationWarning
             key={build.detectedAt.getTime()}
           >
             {build.number}
