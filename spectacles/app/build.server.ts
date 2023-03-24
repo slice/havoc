@@ -6,11 +6,10 @@ export async function latestBuildOnBranch(
 ): Promise<DetectedBuild> {
   const result = await pg.query(
     `
-    SELECT dbob.build_id, dbob.branch, dbob.detected_at, db.build_number
-    FROM detected_builds_on_branches dbob
-    INNER JOIN detected_builds db ON db.build_id = dbob.build_id
+    SELECT build_id, branch, detected_at, build_number
+    FROM detections
     WHERE branch = $1::discord_branch
-    ORDER BY dbob.detected_at DESC
+    ORDER BY detected_at DESC
     LIMIT 1;
   `,
     [branch]

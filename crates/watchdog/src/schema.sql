@@ -86,4 +86,15 @@ CREATE TABLE IF NOT EXISTS detected_builds_on_branches (
   detected_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- A view that includes the build number alongside the build ID. Useful, since
+-- we also want the build number a lot of the time.
+CREATE VIEW detections AS
+  SELECT
+    db.build_id,
+    db.build_number,
+    dbob.branch,
+    dbob.detected_at
+  FROM detected_builds_on_branches dbob
+  INNER JOIN detected_builds db ON db.build_id = dbob.build_id;
+
 COMMIT;

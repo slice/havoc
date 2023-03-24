@@ -24,11 +24,10 @@ export async function loader() {
       )
     ),
     pg.query(`
-        SELECT dbob.branch, db.build_number, db.build_id, dbob.detected_at
-        FROM detected_builds_on_branches dbob
-        INNER JOIN detected_builds db ON db.build_id = dbob.build_id
-        WHERE dbob.detected_at > (current_timestamp - interval '7 days')
-        ORDER BY dbob.detected_at DESC
+        SELECT branch, build_number, build_id, detected_at
+        FROM detections
+        WHERE detected_at > (current_timestamp - interval '7 days')
+        ORDER BY detected_at DESC
       `),
   ]);
 
