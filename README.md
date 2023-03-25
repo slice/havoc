@@ -1,5 +1,7 @@
 # havoc
 
+<img src="./docs/spectacles_67d10e6_uncollapsed.jpg" align="right" width=385>
+
 havoc is a [Discord] client instrumentation toolkit written in [Rust] that aims
 to be robust, correct, and efficient. [watchdog] is a persistent daemon-like
 program that leverages havoc to monitor for new builds, exposes a fluent HTTP
@@ -7,10 +9,15 @@ API, and performs code and asset diffing between builds. [spectacles] is a
 frontend that consumes this information, collating and presenting it in a
 beautiful and easy-to-understand way.
 
+havoc and friends are intended to be useful tools to client modders and curious
+onlookers alike. User friendliness and experience is an overall priority.
+
 [rust]: https://www.rust-lang.org
 [watchdog]: /crates/watchdog
 [spectacles]: /spectacles
 [discord]: https://discord.com
+
+<br clear="both">
 
 ## Usage
 
