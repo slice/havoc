@@ -10,7 +10,14 @@ frontend that consumes this information, collating and presenting it in a
 beautiful and easy-to-understand way.
 
 havoc and friends are intended to be useful tools to client modders and curious
-onlookers alike. User friendliness and experience is an overall priority.
+onlookers alike, and is especially designed to cater to people who would benefit
+from an easier time inspecting the client's code. User friendliness and
+experience is an overall priority.
+
+**These projects are currently a heavy work-in-progress** and aren't ready for
+general consumption just yet. They'll become minimum viable products eventually,
+but will likely require maintenence indefinitely due to the nature of the
+project.
 
 [rust]: https://www.rust-lang.org
 [watchdog]: /crates/watchdog
