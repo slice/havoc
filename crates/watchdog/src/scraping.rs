@@ -40,7 +40,7 @@ pub async fn detect_changes_on_branch(
     Ok(())
 }
 
-pub async fn scrape_indefinitely(config: &Config, db: Db) -> Result<()> {
+pub async fn scrape_forever(config: &Config, db: &Db) -> Result<()> {
     // Go from [subscription] to {branch: [subscription]}.
     let mut branches: HashMap<Branch, Vec<&Subscription>> = HashMap::new();
     for subscription in &config.subscriptions {
@@ -57,7 +57,7 @@ pub async fn scrape_indefinitely(config: &Config, db: Db) -> Result<()> {
     loop {
         for (&branch, subscriptions) in &branches {
             let scrape_span = tracing::info_span!("scrape", ?branch);
-            detect_changes_on_branch(&db, branch, subscriptions)
+            detect_changes_on_branch(db, branch, subscriptions)
                 .instrument(scrape_span)
                 .await?;
         }

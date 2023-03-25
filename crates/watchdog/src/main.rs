@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use anyhow::{Context, Result};
 use watchdog::config::Config;
 use watchdog::db::Db;
@@ -12,13 +14,7 @@ async fn run(config: Config) -> Result<()> {
 
     let db = Db::new(pool);
 
-    let scraper_db = db.clone();
-    let scraper_config = config.clone();
-    tokio::spawn(async move {
-        watchdog::scraping::scrape_indefinitely(&scraper_config, scraper_db)
-            .await
-            .expect("scraper crashed");
-    });
+    spawn_indefinite_scraper(db.clone(), config.clone());
 
     let web_db = db.clone();
     let state = watchdog::api::AppState { db: web_db };
@@ -33,6 +29,51 @@ async fn run(config: Config) -> Result<()> {
         .await?;
 
     Ok(())
+}
+
+fn spawn_indefinite_scraper(db: Db, config: Config) {
+    let supervisor = tokio::spawn(async move {
+        let default_backoff = Duration::from_secs(1);
+        let mut restart_backoff = default_backoff;
+        let mut last_backoff: Option<Instant> = None;
+
+        loop {
+            let Err(err) = watchdog::scraping::scrape_forever(&config, &db).await else {
+                panic!("indefinite scraper terminated without an error (this should never happen)");
+            };
+            tracing::error!(?restart_backoff, "indefinite scraper died: {}", err);
+
+            // If it's been five minutes or longer since the last backoff, reset
+            // it back to the default wait time.
+            let resetting_backoff =
+                last_backoff.map_or(false, |last| last.elapsed() >= Duration::new(60 * 5, 0));
+            if resetting_backoff {
+                restart_backoff = default_backoff;
+            }
+
+            tokio::time::sleep(restart_backoff).await;
+
+            if !resetting_backoff {
+                restart_backoff = restart_backoff.checked_mul(2).unwrap_or(default_backoff);
+            }
+
+            last_backoff = Some(Instant::now());
+        }
+    });
+
+    tokio::spawn(async move {
+        let err = supervisor.await.expect_err(
+            "indefinite scraper supervisor terminated without an error (this should never happen)",
+        );
+
+        tracing::error!(
+            ?err,
+            "indefinite scraper panicked! something is very wrong here, aborting: {}",
+            err
+        );
+
+        std::process::exit(1);
+    });
 }
 
 #[tokio::main]
