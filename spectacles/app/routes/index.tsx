@@ -26,7 +26,7 @@ export async function loader() {
     pg.query(`
         SELECT branch, build_number, build_id, detected_at
         FROM detections
-        WHERE detected_at > (current_timestamp - interval '7 days')
+        WHERE detected_at > (current_timestamp - INTERVAL '7 days')
         ORDER BY detected_at DESC
       `),
   ]);
