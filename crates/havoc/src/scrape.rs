@@ -220,6 +220,7 @@ pub fn extract_assets_from_tags(page_content: &str) -> Vec<discord::FeAsset> {
 }
 
 /// A scrape target.
+#[derive(Clone, Debug)]
 pub enum Target {
     Frontend(discord::Branch),
 }

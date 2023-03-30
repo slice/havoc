@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use clap::{App, AppSettings, Arg};
+use clap::{ArgAction, Command};
 
 use havoc::artifact::Artifact;
 use havoc::discord::AssetCache;
@@ -7,36 +7,54 @@ use havoc::dump::Dump;
 use havoc::scrape::{self, extract_assets_from_chunk_loader};
 use tracing::Instrument;
 
-fn app() -> App<'static> {
-    App::new("havoc")
-        .global_setting(AppSettings::PropagateVersion)
-        .setting(AppSettings::SubcommandRequiredElseHelp)
-        .version("0.1.0")
-        .author("slice <tinyslices@gmail.com>")
-        .about("discord client scraping and processing toolkit")
+fn app() -> clap::Command {
+    clap::command!()
+        .propagate_version(true)
+        .subcommand_required(true)
+        .disable_help_flag(true)
+        .disable_help_subcommand(true)
+        .disable_version_flag(true)
+        .arg(
+            clap::arg!(-h --help "print help")
+                .action(ArgAction::Help)
+                .global(true),
+        )
+        .arg(clap::arg!(-V --version "print version").action(ArgAction::Version))
         .subcommand(
-            App::new("scrape")
-                .about("Scrape a target")
-                .arg(
-                    Arg::new("dump")
-                        .long("dump")
-                        .short('d')
-                        .multiple_occurrences(true)
-                        .help("build items to dump")
-                        .takes_value(true),
+            Command::new("scrape")
+                .about("scrape a target")
+                .long_about(
+                    "This subcommand scrapes from a target and outputs
+human-readable information about it to standard output. Invoking dumpers on the
+scraped artifact can also be done.",
                 )
                 .arg(
-                    Arg::new("deep")
-                        .long("deep")
-                        .help("look for assets contained within assets")
-                        .action(clap::ArgAction::SetTrue),
+                    clap::arg!(-d --dump "what to dump from the target")
+                        .required(false)
+                        .long_help(
+                            r#"the names of dumpers to invoke on the target
+e.g. "modules", "classes""#,
+                        )
+                        .action(ArgAction::Append),
                 )
                 .arg(
-                    Arg::new("TARGET")
-                        .required(true)
-                        .help("the target to scrape")
-                        .takes_value(true),
-                ),
+                    clap::arg!(--deep "look for assets contained within assets")
+                        .action(ArgAction::SetTrue)
+                        .long_help(
+                            "instructs havoc to look for assets that are
+contained within other hashes (script chunks, artwork, etc.)",
+                        ),
+                )
+                .arg(
+                    clap::arg!(target: <TARGET> "what to scrape")
+                        .value_parser(clap::value_parser!(scrape::Target))
+                        .long_help(
+                            r#"the scrape target, using target syntax
+e.g. "fe:canary" to target latest canary"#,
+                        ),
+                )
+                .after_help("invoke with --help for more information")
+                .after_long_help(""),
         )
 }
 
@@ -48,13 +66,13 @@ async fn main() -> Result<()> {
     let matches = app.get_matches();
 
     if let Some(matches) = matches.subcommand_matches("scrape") {
-        let target: scrape::Target = matches
-            .value_of_t("TARGET")
-            .unwrap_or_else(|err| err.exit());
+        let target = matches
+            .get_one::<scrape::Target>("target")
+            .expect("no scrape target specified");
 
         let scrape::Target::Frontend(branch) = target;
 
-        let manifest = scrape::scrape_fe_manifest(branch)
+        let manifest = scrape::scrape_fe_manifest(*branch)
             .await
             .context("failed to scrape frontend manifest")?;
 
@@ -81,10 +99,8 @@ async fn main() -> Result<()> {
             println!("\tchunk loader: {} scripts", script_chunks.len());
         }
 
-        if let Some(dumping) = matches
-            .values_of("dump")
-            .map(|values| values.collect::<Vec<_>>())
-        {
+        if let Some(dump_values) = matches.get_many("dump") {
+            let dumping = dump_values.copied().collect::<Vec<_>>();
             dump_items(&dumping, &mut build, &mut cache).await?;
         }
     }
