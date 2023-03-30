@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 /// The types of various `<script>` tags in Discord application's HTML.
 /// Keep in mind that these are fragile assumptions and could potentially
 /// change at any time.
@@ -15,6 +17,19 @@ pub enum RootScript {
 
     /// The principal Webpack chunk containing the bulk of the app code.
     Entrypoint,
+}
+
+impl Display for RootScript {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use RootScript::*;
+
+        match self {
+            ChunkLoader => write!(f, "chunk loader"),
+            Classes => write!(f, "classes"),
+            Vendor => write!(f, "vendor"),
+            Entrypoint => write!(f, "entrypoint"),
+        }
+    }
 }
 
 impl RootScript {

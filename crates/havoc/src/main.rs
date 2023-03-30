@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Context, Result};
-use clap::{ArgAction, Command};
+use clap::{ArgAction, ArgMatches, Command};
 
 use havoc::artifact::Artifact;
-use havoc::discord::AssetCache;
+use havoc::discord::{AssetCache, FeAssetType, FeBuild, RootScript};
 use havoc::dump::Dump;
 use havoc::scrape::{self, extract_assets_from_chunk_loader};
 use tracing::Instrument;
@@ -80,29 +80,54 @@ async fn main() -> Result<()> {
         let mut build = crate::scrape::scrape_fe_build(manifest, &mut cache)
             .await
             .context("failed to scrape frontend build")?;
-        let assets = &build.manifest.assets;
 
         println!("{}", build);
+        println!();
 
-        println!("surface assets ({}):", assets.len());
-
-        for asset in assets {
-            println!("\t{}.{}", asset.name, asset.typ.ext());
-        }
-
-        if matches.get_flag("deep") {
-            println!("deep scanning ..");
-
-            let script_chunks = extract_assets_from_chunk_loader(&build.manifest, &mut cache)
-                .await
-                .context("failed to extract assets from chunk loader")?;
-            println!("\tchunk loader: {} scripts", script_chunks.len());
-        }
+        print_assets(&build, &mut cache, &matches).await?;
 
         if let Some(dump_values) = matches.get_many("dump") {
             let dumping = dump_values.copied().collect::<Vec<_>>();
             dump_items(&dumping, &mut build, &mut cache).await?;
         }
+    }
+
+    Ok(())
+}
+
+async fn print_assets(build: &FeBuild, cache: &mut AssetCache, matches: &ArgMatches) -> Result<()> {
+    let assets = &build.manifest.assets;
+    println!("surface assets ({}):", assets.len());
+
+    for (asset, root_script_type) in assets
+        .filter_by_type(FeAssetType::Js)
+        .zip(RootScript::assumed_ordering().into_iter())
+    {
+        match root_script_type {
+            RootScript::ChunkLoader if matches.get_flag("deep") => {
+                if matches.get_flag("deep") {
+                    let script_chunks = extract_assets_from_chunk_loader(&build.manifest, cache)
+                        .await
+                        .context("failed to extract assets from chunk loader")?;
+                    println!(
+                        "\t{} (chunk loader, {} script chunks)",
+                        asset.filename(),
+                        script_chunks.len()
+                    );
+
+                    for script_chunk in script_chunks.iter().take(7) {
+                        println!("\t\t{}", script_chunk.filename());
+                    }
+                    println!("\t\t...");
+                }
+            }
+            _ => {
+                println!("\t{} ({})", asset.filename(), root_script_type);
+            }
+        }
+    }
+    for asset in assets.filter_by_type(FeAssetType::Css) {
+        println!("\t{}", asset.filename());
     }
 
     Ok(())
