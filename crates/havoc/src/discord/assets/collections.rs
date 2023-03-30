@@ -1,7 +1,9 @@
 use serde::Serialize;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 use crate::discord::{FeAsset, FeAssetType, RootScript};
+
+// TODO: Maybe replace with AssetsExt. X_X
 
 /// A collection of [`crate::discord::FeAsset`]s.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
@@ -12,15 +14,14 @@ pub struct Assets {
 }
 
 impl Assets {
-    /// Filters all assets by type.
-    pub fn filter_by_type(
-        &self,
-        typ: FeAssetType,
-    ) -> Box<dyn Iterator<Item = &FeAsset> + '_ + Send> {
+    /// Returns an iterator over all assets of a certain type contained within
+    /// this `Assets`.
+    pub fn filter_by_type(&self, typ: FeAssetType) -> impl Iterator<Item = &FeAsset> {
         Box::new(self.inner.iter().filter(move |asset| asset.typ == typ))
     }
 
-    /// Attempts to locate a root script of a certain type.
+    /// Tries to find a script that corresponds to the assumed index of a kind
+    /// of root script.
     pub fn find_root_script(&self, root_script_type: RootScript) -> Option<FeAsset> {
         self.filter_by_type(FeAssetType::Js)
             .nth(root_script_type.assumed_index())
@@ -29,10 +30,16 @@ impl Assets {
 }
 
 impl Deref for Assets {
-    type Target = [FeAsset];
+    type Target = Vec<FeAsset>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl DerefMut for Assets {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
     }
 }
 
@@ -41,7 +48,7 @@ impl<'a> IntoIterator for &'a Assets {
     type IntoIter = <&'a Vec<FeAsset> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
-        (&self.inner).into_iter()
+        self.inner.iter()
     }
 }
 
