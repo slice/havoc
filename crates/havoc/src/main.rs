@@ -64,12 +64,12 @@ async fn main() -> Result<()> {
             .context("failed to scrape frontend build")?;
         let assets = &build.manifest.assets;
 
-        println!("scraped: {}", build);
+        println!("{}", build);
 
-        println!("assets ({}):", assets.len());
+        println!("surface assets ({}):", assets.len());
 
         for asset in assets {
-            println!("\t{}.{} ({:?})", asset.name, asset.typ.ext(), asset.typ);
+            println!("\t{}.{}", asset.name, asset.typ.ext());
         }
 
         if matches.get_flag("deep") {
