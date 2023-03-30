@@ -4,7 +4,7 @@ use clap::{App, AppSettings, Arg};
 use havoc::artifact::Artifact;
 use havoc::discord::AssetCache;
 use havoc::dump::Dump;
-use havoc::scrape;
+use havoc::scrape::{self, extract_assets_from_chunk_loader};
 use tracing::Instrument;
 
 fn app() -> App<'static> {
@@ -18,18 +18,23 @@ fn app() -> App<'static> {
             App::new("scrape")
                 .about("Scrape a target")
                 .arg(
-                    Arg::new("TARGET")
-                        .required(true)
-                        .help("the target to scrape")
-                        .takes_value(true)
-                        .index(1),
-                )
-                .arg(
                     Arg::new("dump")
                         .long("dump")
                         .short('d')
                         .multiple_occurrences(true)
                         .help("build items to dump")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::new("deep")
+                        .long("deep")
+                        .help("look for assets contained within assets")
+                        .action(clap::ArgAction::SetTrue),
+                )
+                .arg(
+                    Arg::new("TARGET")
+                        .required(true)
+                        .help("the target to scrape")
                         .takes_value(true),
                 ),
         )
@@ -65,6 +70,15 @@ async fn main() -> Result<()> {
 
         for asset in assets {
             println!("\t{}.{} ({:?})", asset.name, asset.typ.ext(), asset.typ);
+        }
+
+        if matches.get_flag("deep") {
+            println!("deep scanning ..");
+
+            let script_chunks = extract_assets_from_chunk_loader(&build.manifest, &mut cache)
+                .await
+                .context("failed to extract assets from chunk loader")?;
+            println!("\tchunk loader: {} scripts", script_chunks.len());
         }
 
         if let Some(dumping) = matches
