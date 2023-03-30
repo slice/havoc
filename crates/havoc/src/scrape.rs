@@ -8,7 +8,7 @@ use regex::Regex;
 use thiserror::Error;
 use url::Url;
 
-use crate::discord::{self, AssetCache, RootScript};
+use crate::discord::{self, AssetCache, Assets, FeAsset, FeAssetType, RootScript};
 
 #[derive(Error, Debug)]
 pub enum ScrapeError {
@@ -16,7 +16,7 @@ pub enum ScrapeError {
     Network(#[from] NetworkError),
 
     #[error("malformed utf-8")]
-    Decoding(#[source] Utf8Error),
+    Decoding(#[from] Utf8Error),
 
     #[error("branch page is missing assets: {0}")]
     MissingBranchPageAssets(&'static str),
@@ -96,6 +96,47 @@ pub async fn scrape_fe_manifest(
         hash: hash.to_owned(),
         assets: assets.into(),
     })
+}
+
+/// Identifies script and stylesheet chunks present in the chunkloader.
+pub async fn extract_assets_from_chunk_loader(
+    manifest: &discord::FeManifest,
+    cache: &mut AssetCache,
+) -> Result<Assets, ScrapeError> {
+    let chunk_loader = manifest
+        .assets
+        .find_root_script(RootScript::ChunkLoader)
+        .ok_or(ScrapeError::MissingBranchPageAssets("chunk loader"))?;
+    let data = cache.raw_content(&chunk_loader).await?;
+    let text = std::str::from_utf8(data)?;
+
+    // The chunk loader is bisected into two sections that handle scripts and
+    // stylesheets accordingly.
+    //
+    // Whatever Discord is using to process their stylesheets emits a ton of
+    // garbage hashes that don't correspond to actual assets, so the second
+    // section is mostly useless data. There's only one real stylesheet that is
+    // already present as a <link> tag in the HTML.
+    //
+    // Here, split the chunk loader via an arbitrary landmark.
+    let script_section = text
+        .split_once(r#"+".js""#)
+        .map(|(script_section, _)| script_section)
+        .ok_or(ScrapeError::MissingStaticBuildInformation)?;
+
+    lazy_static::lazy_static! {
+        static ref HASH_REGEX: Regex = Regex::new("[a-f0-9]{20}").unwrap();
+    }
+
+    let assets = HASH_REGEX
+        .find_iter(script_section)
+        .map(|match_| FeAsset {
+            name: match_.as_str().to_owned(),
+            typ: FeAssetType::Js,
+        })
+        .collect::<Vec<_>>();
+
+    Ok(Assets { inner: assets })
 }
 
 /// Scrapes a [`discord::FeBuild`] from a [`discord::FeManifest`].
