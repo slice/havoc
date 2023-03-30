@@ -1,11 +1,14 @@
+use std::io::Write;
+
 use anyhow::{anyhow, Context, Result};
 use clap::{ArgAction, ArgMatches, Command};
+use termcolor::{Color, ColorChoice, ColorSpec, WriteColor};
+use tracing::Instrument;
 
 use havoc::artifact::Artifact;
-use havoc::discord::{AssetCache, FeAssetType, FeBuild, RootScript};
+use havoc::discord::{AssetCache, FeAsset, FeAssetType, FeBuild, RootScript};
 use havoc::dump::Dump;
 use havoc::scrape::{self, extract_assets_from_chunk_loader};
-use tracing::Instrument;
 
 fn app() -> clap::Command {
     clap::command!()
@@ -17,6 +20,14 @@ fn app() -> clap::Command {
         .arg(
             clap::arg!(-h --help "print help")
                 .action(ArgAction::Help)
+                .global(true),
+        )
+        .arg(
+            clap::arg!(color: --color "whether to color the output")
+                .default_value("auto")
+                .default_missing_value("auto")
+                .action(ArgAction::Set)
+                .value_parser(clap::value_parser!(ColorChoice))
                 .global(true),
         )
         .arg(clap::arg!(-V --version "print version").action(ArgAction::Version))
@@ -36,6 +47,10 @@ scraped artifact can also be done.",
 e.g. "modules", "classes""#,
                         )
                         .action(ArgAction::Append),
+                )
+                .arg(
+                    clap::arg!(--links "add hyperlinks to the output (for supported terminals)")
+                        .action(ArgAction::SetTrue),
                 )
                 .arg(
                     clap::arg!(--deep "look for assets contained within assets")
@@ -58,12 +73,30 @@ e.g. "fe:canary" to target latest canary"#,
         )
 }
 
+fn create_stdout(matches: &ArgMatches) -> (ColorChoice, termcolor::StandardStream) {
+    let color_choice: ColorChoice = {
+        let choice_args = *matches
+            .get_one::<ColorChoice>("color")
+            .unwrap_or(&ColorChoice::Auto);
+
+        if choice_args == ColorChoice::Auto && !atty::is(atty::Stream::Stdout) {
+            ColorChoice::Never
+        } else {
+            choice_args
+        }
+    };
+
+    let stdout = termcolor::StandardStream::stdout(color_choice);
+    (color_choice, stdout)
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let app = app();
     let matches = app.get_matches();
+    let (_color_choice, mut stdout) = create_stdout(&matches);
 
     if let Some(matches) = matches.subcommand_matches("scrape") {
         let target = matches
@@ -81,10 +114,7 @@ async fn main() -> Result<()> {
             .await
             .context("failed to scrape frontend build")?;
 
-        println!("{}", build);
-        println!();
-
-        print_assets(&build, &mut cache, &matches).await?;
+        print_build(&build, &mut cache, matches, &mut stdout).await?;
 
         if let Some(dump_values) = matches.get_many("dump") {
             let dumping = dump_values.copied().collect::<Vec<_>>();
@@ -95,9 +125,59 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn print_assets(build: &FeBuild, cache: &mut AssetCache, matches: &ArgMatches) -> Result<()> {
+async fn print_build(
+    build: &FeBuild,
+    cache: &mut AssetCache,
+    matches: &ArgMatches,
+    output: &mut termcolor::StandardStream,
+) -> Result<()> {
+    use havoc::discord::Branch::*;
+
+    let bg = match build.manifest.branch {
+        Canary => Color::Yellow,
+        Stable => Color::Green,
+        Ptb => Color::Blue,
+        Development => Color::White,
+    };
+    let fg = match build.manifest.branch {
+        Canary | Development => Color::Black,
+        _ => Color::White,
+    };
+
+    output.set_color(ColorSpec::new().set_bg(Some(bg)).set_fg(Some(fg)))?;
+    write!(output, "{}", build)?;
+    output.set_color(ColorSpec::new().set_bg(None).set_fg(None))?;
+    output.reset()?;
+    writeln!(output, "\n")?;
+
     let assets = &build.manifest.assets;
-    println!("surface assets ({}):", assets.len());
+
+    writeln!(output, "surface assets ({}):", assets.len())?;
+
+    let mut write_asset_plain = |asset: &FeAsset, detail: Option<String>| -> Result<()> {
+        output.set_color(ColorSpec::new().set_bold(true))?;
+        write!(output, "\t")?;
+
+        let hyperlinking = *matches.get_one("links").unwrap_or(&false);
+        if hyperlinking {
+            write!(output, "\x1b]8;;{}\x1b\\", asset.url())?;
+        }
+
+        write!(output, "{}", asset.filename())?;
+        output.set_color(ColorSpec::new().set_bold(false))?;
+
+        if hyperlinking {
+            write!(output, "\x1b]8;;\x1b\\")?;
+        }
+
+        if let Some(detail) = detail {
+            writeln!(output, " ({})", detail)?;
+        } else {
+            writeln!(output)?;
+        }
+
+        Ok(())
+    };
 
     for (asset, root_script_type) in assets
         .filter_by_type(FeAssetType::Js)
@@ -109,11 +189,13 @@ async fn print_assets(build: &FeBuild, cache: &mut AssetCache, matches: &ArgMatc
                     let script_chunks = extract_assets_from_chunk_loader(&build.manifest, cache)
                         .await
                         .context("failed to extract assets from chunk loader")?;
-                    println!(
-                        "\t{} (chunk loader, {} script chunks)",
-                        asset.filename(),
-                        script_chunks.len()
-                    );
+                    write_asset_plain(
+                        asset,
+                        Some(format!(
+                            "chunk loader, {} script chunks",
+                            script_chunks.len()
+                        )),
+                    )?;
 
                     for script_chunk in script_chunks.iter().take(7) {
                         println!("\t\t{}", script_chunk.filename());
@@ -122,12 +204,12 @@ async fn print_assets(build: &FeBuild, cache: &mut AssetCache, matches: &ArgMatc
                 }
             }
             _ => {
-                println!("\t{} ({})", asset.filename(), root_script_type);
+                write_asset_plain(asset, Some(format!("{}", root_script_type)))?;
             }
         }
     }
     for asset in assets.filter_by_type(FeAssetType::Css) {
-        println!("\t{}", asset.filename());
+        write_asset_plain(asset, None)?;
     }
 
     Ok(())

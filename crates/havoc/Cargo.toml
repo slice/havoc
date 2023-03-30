@@ -29,3 +29,5 @@ isahc = { version = "1.7", features = ["json"] }
 tokio = { version = "1.21.2", features = ["rt", "io-util", "macros"] }
 async-trait = "0.1.57"
 futures = "0.3.24"
+termcolor = "1.2.0"
+atty = "0.2.14"
