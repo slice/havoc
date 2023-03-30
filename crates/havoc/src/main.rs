@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
         let mut build = crate::scrape::scrape_fe_build(manifest, &mut cache)
             .await
             .context("failed to scrape frontend build")?;
-        let assets = &build.manifest.assets.inner;
+        let assets = &build.manifest.assets;
 
         println!("scraped: {}", build);
 

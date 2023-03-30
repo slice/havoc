@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::ops::Deref;
 
 use crate::discord::{FeAsset, FeAssetType, RootScript};
 
@@ -24,6 +25,23 @@ impl Assets {
         self.filter_by_type(FeAssetType::Js)
             .nth(root_script_type.assumed_index())
             .cloned()
+    }
+}
+
+impl Deref for Assets {
+    type Target = [FeAsset];
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<'a> IntoIterator for &'a Assets {
+    type Item = &'a FeAsset;
+    type IntoIter = <&'a Vec<FeAsset> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&self.inner).into_iter()
     }
 }
 
