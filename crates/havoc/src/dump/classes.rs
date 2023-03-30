@@ -1,7 +1,8 @@
 //! CSS class mapping dumping.
 
 use crate::{
-    discord::{Assets, RootScript},
+    artifact::Artifact,
+    discord::{AssetCache, RootScript},
     dump::{DumpError, DumpResult},
     parse::{ModuleId, ParseError},
     scrape::ScrapeError,
@@ -101,14 +102,19 @@ pub struct CSSClasses;
 
 #[async_trait::async_trait]
 impl Dump for CSSClasses {
-    async fn dump(&mut self, assets: &mut Assets) -> Result<DumpResult, DumpError> {
-        let classes_asset = assets.find_root_script(RootScript::Classes).ok_or(
-            ScrapeError::MissingBranchPageAssets(
+    async fn dump(
+        &mut self,
+        artifact: &(dyn Artifact + Sync),
+        cache: &mut AssetCache,
+    ) -> Result<DumpResult, DumpError> {
+        let classes_asset = artifact
+            .assets()
+            .find_root_script(RootScript::Classes)
+            .ok_or(ScrapeError::MissingBranchPageAssets(
                 "failed to locate root classes script; discord has updated their /channels/@me",
-            ),
-        )?;
+            ))?;
 
-        let content = assets.raw_content(&classes_asset).await?;
+        let content = cache.raw_content(&classes_asset).await?;
         let classes_js = std::str::from_utf8(content)
             .map_err(ScrapeError::Decoding)?
             .to_owned();

@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::{App, AppSettings, Arg};
 
 use havoc::artifact::Artifact;
-use havoc::discord::Assets;
+use havoc::discord::AssetCache;
 use havoc::dump::Dump;
 use havoc::scrape;
 use tracing::Instrument;
@@ -52,16 +52,18 @@ async fn main() -> Result<()> {
         let manifest = scrape::scrape_fe_manifest(branch)
             .await
             .context("failed to scrape frontend manifest")?;
-        let mut assets = havoc::discord::Assets::with_assets(manifest.assets.clone());
-        let mut build = crate::scrape::scrape_fe_build(manifest, &mut assets)
+
+        let mut cache = AssetCache::new();
+        let mut build = crate::scrape::scrape_fe_build(manifest, &mut cache)
             .await
             .context("failed to scrape frontend build")?;
+        let assets = &build.manifest.assets.inner;
 
         println!("scraped: {}", build);
 
-        println!("assets ({}):", assets.assets.len());
+        println!("assets ({}):", assets.len());
 
-        for asset in &assets.assets {
+        for asset in assets {
             println!("\t{}.{} ({:?})", asset.name, asset.typ.ext(), asset.typ);
         }
 
@@ -69,7 +71,7 @@ async fn main() -> Result<()> {
             .values_of("dump")
             .map(|values| values.collect::<Vec<_>>())
         {
-            dump_items(&dumping, &mut build, &mut assets).await?;
+            dump_items(&dumping, &mut build, &mut cache).await?;
         }
     }
 
@@ -86,8 +88,8 @@ fn resolve_dumper(name: &str) -> Option<Box<dyn Dump>> {
 
 async fn dump_items(
     dumping: &[&str],
-    artifact: &mut dyn Artifact,
-    assets: &mut Assets,
+    artifact: &mut (dyn Artifact + Sync),
+    assets: &mut AssetCache,
 ) -> Result<()> {
     let cwd = std::env::current_dir().context("failed to obtain current working dir")?;
 
@@ -99,7 +101,7 @@ async fn dump_items(
 
         async {
             let result = dumper
-                .dump(assets)
+                .dump(artifact, assets)
                 .await
                 .with_context(|| format!("failed to dump using dumper `{}`", item))?;
 

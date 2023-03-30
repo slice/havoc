@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
 use crate::artifact::Artifact;
-use crate::discord::{FeAsset, FeManifest};
+use crate::discord::{Assets, FeManifest};
 
 use serde::Serialize;
 
@@ -30,7 +30,7 @@ impl Display for FeBuild {
 }
 
 impl Artifact for FeBuild {
-    fn assets(&self) -> &[FeAsset] {
+    fn assets(&self) -> &Assets {
         &self.manifest.assets
     }
 

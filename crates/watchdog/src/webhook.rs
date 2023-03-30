@@ -18,8 +18,7 @@ pub async fn post_build_to_webhook(
         |asset: &FeAsset| format!("[`{}.{}`]({})", asset.name, asset.typ.ext(), asset.url());
 
     let scripts = assets
-        .iter()
-        .filter(|asset| asset.typ == FeAssetType::Js)
+        .filter_by_type(FeAssetType::Js)
         .map(format_asset)
         .collect::<Vec<_>>();
 
@@ -35,8 +34,7 @@ pub async fn post_build_to_webhook(
     };
 
     let styles_listing = assets
-        .iter()
-        .filter(|asset| asset.typ == FeAssetType::Css)
+        .filter_by_type(FeAssetType::Css)
         .map(format_asset)
         .collect::<Vec<_>>()
         .join("\n");

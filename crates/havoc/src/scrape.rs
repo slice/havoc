@@ -8,8 +8,7 @@ use regex::Regex;
 use thiserror::Error;
 use url::Url;
 
-use crate::discord::assets::AssetError;
-use crate::discord::{self, Assets, RootScript};
+use crate::discord::{self, AssetCache, RootScript};
 
 #[derive(Error, Debug)]
 pub enum ScrapeError {
@@ -18,9 +17,6 @@ pub enum ScrapeError {
 
     #[error("malformed utf-8")]
     Decoding(#[source] Utf8Error),
-
-    #[error("asset resolution error")]
-    Asset(#[from] AssetError),
 
     #[error("branch page is missing assets: {0}")]
     MissingBranchPageAssets(&'static str),
@@ -98,7 +94,7 @@ pub async fn scrape_fe_manifest(
     Ok(discord::FeManifest {
         branch,
         hash: hash.to_owned(),
-        assets: assets.into_iter().collect(),
+        assets: assets.into(),
     })
 }
 
@@ -107,15 +103,18 @@ pub async fn scrape_fe_manifest(
 /// Builds contain a superset of the information encapsulated within manifests.
 pub async fn scrape_fe_build(
     fe_manifest: discord::FeManifest,
-    assets: &mut Assets,
+    cache: &mut AssetCache,
 ) -> Result<discord::FeBuild, ScrapeError> {
     // locate the entrypoint script, which contains the build information we're
     // interested in.
-    let entrypoint_asset = assets.find_root_script(RootScript::Entrypoint).expect(
-        "unable to locate entrypoint root script; discord has updated their /channels/@me html",
-    );
+    let entrypoint_asset = fe_manifest
+        .assets
+        .find_root_script(RootScript::Entrypoint)
+        .expect(
+            "unable to locate entrypoint root script; discord has updated their /channels/@me html",
+        );
 
-    let content = assets.raw_content(&entrypoint_asset).await?;
+    let content = cache.raw_content(&entrypoint_asset).await?;
     let entrypoint_js = std::str::from_utf8(content).map_err(ScrapeError::Decoding)?;
     let (_, number) = match_static_build_information(entrypoint_js)?;
 

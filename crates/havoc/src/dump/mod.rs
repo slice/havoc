@@ -2,8 +2,11 @@
 
 use std::{borrow::Cow, path::Path};
 
-use crate::discord::assets::AssetError;
-use crate::{discord::Assets, scrape::ScrapeError};
+use crate::{
+    artifact::Artifact,
+    discord::assets::{AnyError, AssetCache},
+    scrape::{NetworkError, ScrapeError},
+};
 
 pub mod modules;
 pub use modules::WebpackModules;
@@ -76,8 +79,11 @@ pub enum DumpError {
     #[error("failed to scrape")]
     ScrapeFailed(#[from] ScrapeError),
 
-    #[error("failed to resolve asset")]
-    Asset(#[from] AssetError),
+    #[error("failed to fetch")]
+    Network(#[from] NetworkError),
+
+    #[error("failed to preprocess")]
+    Preprocessing(AnyError),
 
     #[error("failed to serialize to JSON")]
     SerializationFailed(#[from] serde_json::Error),
@@ -88,5 +94,9 @@ pub enum DumpError {
 
 #[async_trait::async_trait]
 pub trait Dump {
-    async fn dump(&mut self, assets: &mut Assets) -> Result<DumpResult, DumpError>;
+    async fn dump(
+        &mut self,
+        artifact: &(dyn Artifact + Sync),
+        cache: &mut AssetCache,
+    ) -> Result<DumpResult, DumpError>;
 }

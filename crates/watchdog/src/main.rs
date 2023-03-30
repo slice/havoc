@@ -16,8 +16,7 @@ async fn run(config: Config) -> Result<()> {
 
     spawn_indefinite_scraper(db.clone(), config.clone());
 
-    let web_db = db.clone();
-    let state = watchdog::api::AppState { db: web_db };
+    let state = watchdog::api::AppState { db: db.clone() };
     let router = watchdog::api::create_router().with_state(state);
 
     tracing::info!(

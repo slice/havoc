@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
-use havoc::discord::{Assets, Branch};
+use havoc::discord::{AssetCache, Branch};
 use tracing::Instrument;
 
 use crate::{config::Config, db::Db, subscription::Subscription};
@@ -13,14 +13,14 @@ pub async fn detect_changes_on_branch(
     subscriptions: &[&Subscription],
 ) -> Result<()> {
     let manifest = scrape::scrape_fe_manifest(branch).await?;
-    let mut assets = Assets::with_assets(manifest.assets.clone());
+    let mut cache = AssetCache::new();
 
     if db.last_known_build_hash_on_branch(branch).await? == Some(manifest.hash.clone()) {
         tracing::trace!("{} is stale", branch);
         return Ok(());
     }
 
-    let build = scrape::scrape_fe_build(manifest, &mut assets).await?;
+    let build = scrape::scrape_fe_build(manifest, &mut cache).await?;
 
     tracing::info!(
         "detected new build (branch: {}, number: {})",
@@ -29,7 +29,7 @@ pub async fn detect_changes_on_branch(
     );
 
     db.detected_build_change_on_branch(&build, branch).await?;
-    db.detected_assets(&build, &assets).await?;
+    db.detected_assets(&build).await?;
 
     for subscription in subscriptions {
         crate::webhook::post_build_to_webhook(&build, subscription)
