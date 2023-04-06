@@ -8,7 +8,8 @@ use regex::Regex;
 use thiserror::Error;
 use url::Url;
 
-use crate::discord::{self, AssetCache, Assets, FeAsset, FeAssetType, RootScript};
+use crate::discord::{self, AssetCache, FeAsset, FeAssetType, RootScript};
+use crate::parse::ChunkId;
 
 #[derive(Error, Debug)]
 pub enum ScrapeError {
@@ -102,7 +103,7 @@ pub async fn scrape_fe_manifest(
 pub async fn extract_assets_from_chunk_loader(
     manifest: &discord::FeManifest,
     cache: &mut AssetCache,
-) -> Result<Assets, ScrapeError> {
+) -> Result<Vec<(ChunkId, FeAsset)>, ScrapeError> {
     let chunk_loader = manifest
         .assets
         .find_root_script(RootScript::ChunkLoader)
@@ -125,18 +126,25 @@ pub async fn extract_assets_from_chunk_loader(
         .ok_or(ScrapeError::MissingStaticBuildInformation)?;
 
     lazy_static::lazy_static! {
-        static ref HASH_REGEX: Regex = Regex::new("[a-f0-9]{20}").unwrap();
+        static ref HASH_REGEX: Regex = Regex::new(r#"(?P<chunk_id>\d+):"(?P<name>[a-f0-9]{20})""#).unwrap();
     }
 
     let assets = HASH_REGEX
-        .find_iter(script_section)
-        .map(|match_| FeAsset {
-            name: match_.as_str().to_owned(),
-            typ: FeAssetType::Js,
+        .captures_iter(script_section)
+        .map(|captures| {
+            (
+                captures["chunk_id"]
+                    .parse::<ChunkId>()
+                    .expect("chunk ID can't fit into u32"),
+                FeAsset {
+                    name: captures["name"].to_owned(),
+                    typ: FeAssetType::Js,
+                },
+            )
         })
         .collect::<Vec<_>>();
 
-    Ok(Assets { inner: assets })
+    Ok(assets)
 }
 
 /// Scrapes a [`discord::FeBuild`] from a [`discord::FeManifest`].

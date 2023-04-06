@@ -197,8 +197,8 @@ async fn print_build(
                         )),
                     )?;
 
-                    for script_chunk in script_chunks.iter().take(7) {
-                        println!("\t\t{}", script_chunk.filename());
+                    for (chunk_id, script_chunk) in script_chunks.iter().take(7) {
+                        println!("\t\t{}: {}", chunk_id, script_chunk.filename());
                     }
                     println!("\t\t...");
                 }
