@@ -8,7 +8,7 @@ use regex::Regex;
 use thiserror::Error;
 use url::Url;
 
-use crate::discord::{self, AssetCache, FeAsset, FeAssetType, RootScript};
+use crate::discord::{self, AssetCache, AssetsExt, FeAsset, FeAssetType, RootScript};
 use crate::parse::ChunkId;
 
 #[derive(Error, Debug)]
@@ -95,7 +95,7 @@ pub async fn scrape_fe_manifest(
     Ok(discord::FeManifest {
         branch,
         hash: hash.to_owned(),
-        assets: assets.into(),
+        assets,
     })
 }
 
@@ -106,9 +106,10 @@ pub async fn extract_assets_from_chunk_loader(
 ) -> Result<Vec<(ChunkId, FeAsset)>, ScrapeError> {
     let chunk_loader = manifest
         .assets
+        .iter()
         .find_root_script(RootScript::ChunkLoader)
         .ok_or(ScrapeError::MissingBranchPageAssets("chunk loader"))?;
-    let data = cache.raw_content(&chunk_loader).await?;
+    let data = cache.raw_content(chunk_loader).await?;
     let text = std::str::from_utf8(data)?;
 
     // The chunk loader is bisected into two sections that handle scripts and
@@ -158,12 +159,13 @@ pub async fn scrape_fe_build(
     // interested in.
     let entrypoint_asset = fe_manifest
         .assets
+        .iter()
         .find_root_script(RootScript::Entrypoint)
         .expect(
             "unable to locate entrypoint root script; discord has updated their /channels/@me html",
         );
 
-    let content = cache.raw_content(&entrypoint_asset).await?;
+    let content = cache.raw_content(entrypoint_asset).await?;
     let entrypoint_js = std::str::from_utf8(content).map_err(ScrapeError::Decoding)?;
     let (_, number) = match_static_build_information(entrypoint_js)?;
 

@@ -6,7 +6,7 @@ use termcolor::{Color, ColorChoice, ColorSpec, WriteColor};
 use tracing::Instrument;
 
 use havoc::artifact::Artifact;
-use havoc::discord::{AssetCache, FeAsset, FeAssetType, FeBuild, RootScript};
+use havoc::discord::{AssetCache, AssetsExt, FeAsset, FeAssetType, FeBuild, RootScript};
 use havoc::dump::Dump;
 use havoc::scrape::{self, extract_assets_from_chunk_loader};
 
@@ -180,6 +180,7 @@ async fn print_build(
     };
 
     for (asset, root_script_type) in assets
+        .iter()
         .filter_by_type(FeAssetType::Js)
         .zip(RootScript::assumed_ordering().into_iter())
     {
@@ -208,7 +209,7 @@ async fn print_build(
             }
         }
     }
-    for asset in assets.filter_by_type(FeAssetType::Css) {
+    for asset in assets.iter().filter_by_type(FeAssetType::Css) {
         write_asset_plain(asset, None)?;
     }
 

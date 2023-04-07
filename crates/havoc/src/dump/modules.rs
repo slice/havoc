@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::{
     artifact::Artifact,
-    discord::{AssetCache, Assets, RootScript},
+    discord::{AssetCache, AssetsExt, FeAsset, RootScript},
     dump::{Dump, DumpError},
     parse::ModuleId,
     scrape::ScrapeError,
@@ -15,17 +15,18 @@ use super::DumpResult;
 pub struct WebpackModules;
 
 async fn parse_webpack_chunk<'cache>(
-    assets: &'_ Assets,
+    assets: &'_ [FeAsset],
     cache: &'cache mut AssetCache,
 ) -> Result<(swc_ecma_ast::Script, HashMap<ModuleId, &'cache str>), DumpError> {
-    let entrypoint_asset = assets.find_root_script(RootScript::Entrypoint).ok_or(
-        ScrapeError::MissingBranchPageAssets(
+    let entrypoint_asset = assets
+        .iter()
+        .find_root_script(RootScript::Entrypoint)
+        .ok_or(ScrapeError::MissingBranchPageAssets(
             "failed to locate root entrypoint script; discord has updated their HTML",
-        ),
-    )?;
+        ))?;
 
     let content = cache
-        .preprocessed_content(&entrypoint_asset)
+        .preprocessed_content(entrypoint_asset)
         .await?
         .map_err(DumpError::Preprocessing)?;
     let entrypoint_js = std::str::from_utf8(content).map_err(ScrapeError::Decoding)?;

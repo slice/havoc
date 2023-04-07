@@ -2,7 +2,7 @@
 
 use std::fmt::Display;
 
-use crate::discord::Assets;
+use crate::discord::FeAsset;
 
 /// Something that you can dump information from.
 ///
@@ -21,5 +21,5 @@ pub trait Artifact: Display {
     }
 
     /// Returns the assets associated with this artifact.
-    fn assets(&self) -> &Assets;
+    fn assets(&self) -> &[FeAsset];
 }

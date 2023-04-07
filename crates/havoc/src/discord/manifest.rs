@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use crate::artifact::Artifact;
-use crate::discord::{Assets, Branch};
+use crate::discord::{Branch, FeAsset};
 
 use serde::Serialize;
 
@@ -22,7 +22,7 @@ pub struct FeManifest {
     /// This value is available in the `X-Build-ID` header sent by Discord and
     /// inside of the entrypoint script.
     pub hash: String,
-    pub assets: Assets,
+    pub assets: Vec<FeAsset>,
 }
 
 impl Display for FeManifest {
@@ -31,13 +31,13 @@ impl Display for FeManifest {
             f,
             "Discord {:?} ({} asset(s))",
             self.branch,
-            self.assets.inner.len()
+            self.assets.len()
         )
     }
 }
 
 impl Artifact for FeManifest {
-    fn assets(&self) -> &Assets {
+    fn assets(&self) -> &[FeAsset] {
         &self.assets
     }
 

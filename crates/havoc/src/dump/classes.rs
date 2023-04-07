@@ -2,7 +2,7 @@
 
 use crate::{
     artifact::Artifact,
-    discord::{AssetCache, RootScript},
+    discord::{AssetCache, AssetsExt, RootScript},
     dump::{DumpError, DumpResult},
     parse::{ModuleId, ParseError},
     scrape::ScrapeError,
@@ -109,12 +109,13 @@ impl Dump for CSSClasses {
     ) -> Result<DumpResult, DumpError> {
         let classes_asset = artifact
             .assets()
+            .iter()
             .find_root_script(RootScript::Classes)
             .ok_or(ScrapeError::MissingBranchPageAssets(
                 "failed to locate root classes script; discord has updated their /channels/@me",
             ))?;
 
-        let content = cache.raw_content(&classes_asset).await?;
+        let content = cache.raw_content(classes_asset).await?;
         let classes_js = std::str::from_utf8(content)
             .map_err(ScrapeError::Decoding)?
             .to_owned();

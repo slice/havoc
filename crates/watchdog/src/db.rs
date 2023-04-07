@@ -1,5 +1,5 @@
 use anyhow::Result;
-use havoc::discord::{Branch, FeAsset, FeAssetType, FeBuild, RootScript};
+use havoc::discord::{AssetsExt, Branch, FeAsset, FeAssetType, FeBuild, RootScript};
 use sqlx::{postgres::PgRow, Postgres, Row};
 
 #[derive(Clone)]
@@ -72,7 +72,12 @@ impl Db {
             Ok(())
         }
 
-        for stylesheet in build.manifest.assets.filter_by_type(FeAssetType::Css) {
+        for stylesheet in build
+            .manifest
+            .assets
+            .iter()
+            .filter_by_type(FeAssetType::Css)
+        {
             detected_asset(
                 &mut transaction,
                 build,
@@ -82,13 +87,13 @@ impl Db {
             .await?;
         }
 
-        let scripts = build
+        for (script, detected_kind) in build
             .manifest
             .assets
+            .iter()
             .filter_by_type(FeAssetType::Js)
-            .zip(RootScript::assumed_ordering().into_iter());
-
-        for (script, detected_kind) in scripts {
+            .zip(RootScript::assumed_ordering().into_iter())
+        {
             detected_asset(
                 &mut transaction,
                 build,
