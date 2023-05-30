@@ -1,5 +1,8 @@
 use anyhow::Result;
-use havoc::discord::{AssetsExt, Branch, FeAsset, FeAssetType, FeBuild, RootScript};
+use havoc::{
+    discord::{AssetCache, AssetsExt, Branch, FeAsset, FeAssetType, FeBuild, RootScript},
+    scrape::extract_assets_from_chunk_loader,
+};
 use sqlx::{postgres::PgRow, Postgres, Row};
 
 #[derive(Clone)]
@@ -44,7 +47,7 @@ impl Db {
         .map(|row: PgRow| row.get(0)))
     }
 
-    pub async fn detected_assets(&self, build: &FeBuild) -> Result<()> {
+    pub async fn detected_assets(&self, build: &FeBuild, cache: &mut AssetCache) -> Result<()> {
         let mut transaction = self.pool.begin().await?;
 
         async fn detected_asset(
@@ -84,6 +87,27 @@ impl Db {
                 stylesheet,
                 DetectedAssetKind::Surface,
             )
+            .await?;
+        }
+
+        let chunks = extract_assets_from_chunk_loader(&build.manifest, cache).await?;
+        for (chunk_id, chunk_asset) in chunks.iter() {
+            detected_asset(
+                &mut transaction,
+                build,
+                chunk_asset,
+                DetectedAssetKind::Deep,
+            )
+            .await?;
+
+            sqlx::query(
+                "INSERT INTO asset_chunk_ids (build_id, name, chunk_id)
+                VALUES ($1, $2, $3)",
+            )
+            .bind(&build.manifest.hash)
+            .bind(chunk_asset.filename())
+            .bind(i32::try_from(*chunk_id).expect("chunk id doesn't fit in an i32"))
+            .execute(&mut transaction)
             .await?;
         }
 

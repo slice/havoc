@@ -71,6 +71,19 @@ CREATE TABLE IF NOT EXISTS detected_assets (
   UNIQUE (build_id, name)
 );
 
+-- All detected script chunk (not module) IDs in a build. Each script chunk
+-- is also present as an asset in the `detected_assets` table. Unfortunately,
+-- this means they are bit disconnected.
+CREATE TABLE IF NOT EXISTS asset_chunk_ids (
+  build_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+
+  chunk_id INTEGER NOT NULL,
+
+  FOREIGN KEY (build_id, name) REFERENCES detected_assets (build_id, name),
+  UNIQUE (build_id, name)
+);
+
 -- Instances of a Discord build detected on a specific branch.
 --
 -- A single build can appear on multiple branches, although not necessarily
