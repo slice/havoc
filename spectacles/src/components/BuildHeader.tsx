@@ -22,7 +22,7 @@ export default function BuildHeader(props: {
           Canary
         </div>
         <div className={classNames(styles.buildBranchDual, "build-ptb")}>
-          <span className="unemphasized">{"& "}</span>PTB
+          <span className={styles.unemphasized}>{"& "}</span>PTB
         </div>
       </>
     ) : (
