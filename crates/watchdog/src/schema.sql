@@ -66,11 +66,6 @@ CREATE TABLE IF NOT EXISTS detected_assets (
 
   -- The filename of the asset, including file extension. This can be fetched
   -- from `discord.com/assets/...`.
-  --
-  -- Unsure if this should be `UNIQUE`; I haven't personally witnessed Discord
-  -- reuse an asset between builds nor have I verified that they have never
-  -- done this, but we shouldn't blow up if they decide to do that in the
-  -- future or have already done so.
   name TEXT NOT NULL,
 
   UNIQUE (build_id, name)
