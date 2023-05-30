@@ -28,8 +28,14 @@ pub async fn detect_changes_on_branch(
         build.number,
     );
 
+    let build_was_previously_catalogued = db.build_hash_is_catalogued(&build.manifest.hash).await?;
     db.detected_build_change_on_branch(&build, branch).await?;
-    db.detected_assets(&build).await?;
+
+    if !build_was_previously_catalogued {
+        db.detected_assets(&build, &mut cache).await?;
+    } else {
+        tracing::info!(?branch, ?build.number, ?build.manifest.hash, "avoiding build asset scrape, already in database");
+    }
 
     for subscription in subscriptions {
         crate::webhook::post_build_to_webhook(&build, subscription)

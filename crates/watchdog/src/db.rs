@@ -131,6 +131,17 @@ impl Db {
         Ok(())
     }
 
+    /// Check whether a build hash is present in the database.
+    pub async fn build_hash_is_catalogued(&self, build_hash: &str) -> Result<bool> {
+        Ok(
+            sqlx::query("SELECT build_id FROM detected_builds WHERE build_id = $1")
+                .bind(build_hash)
+                .fetch_optional(&self.pool)
+                .await?
+                .is_some(),
+        )
+    }
+
     /// Log an instance of a build being present on a branch, inserting the
     /// build into the database if necessary.
     pub async fn detected_build_change_on_branch(
