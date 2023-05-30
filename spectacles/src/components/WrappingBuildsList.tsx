@@ -1,9 +1,10 @@
-import classNames from 'classnames';
-import { Branch, DetectedBuild } from '~/build';
-import { collapseBranches } from '~/collapsing';
+import classNames from "classnames";
+import { Branch, DetectedBuild } from "@/models/build";
+import { collapseBranches } from "@/models/collapsing";
+import styles from "./WrappingBuildsList.module.css";
 
 const timeFormatter = new Intl.DateTimeFormat(undefined, {
-  timeStyle: 'long',
+  timeStyle: "long",
 });
 
 export default function WrappingBuildsList(props: {
@@ -19,9 +20,9 @@ export default function WrappingBuildsList(props: {
     props.latestBuilds?.[branch]?.number;
 
   return (
-    <div className="wrapping-builds-list">
+    <div className={styles.wrappingBuildsList}>
       {collapsedBuilds.map((build) => {
-        const isCollapsed = build.branch === 'collapsed';
+        const isCollapsed = build.branch === "collapsed";
 
         const isCurrent = isCollapsed
           ? latestVersion(Branch.PTB) === build.number &&
@@ -31,9 +32,10 @@ export default function WrappingBuildsList(props: {
         return (
           <div
             className={classNames(
-              'build',
+              styles.build,
               `build-${build.branch}`,
-              isCurrent && 'build-current'
+              build.branch === "collapsed" ? styles.buildCollapsed : null,
+              isCurrent && styles.buildCurrent
             )}
             title={timeFormatter.format(build.detectedAt)}
             suppressHydrationWarning

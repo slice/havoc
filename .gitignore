@@ -7,3 +7,7 @@
 /havoc_*.json
 /*.js
 *.db
+
+node_modules
+.next
+/spectacles/out

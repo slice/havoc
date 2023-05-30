@@ -1,5 +1,5 @@
-import { Branch, DetectedBuild } from './build';
-import pg from './db.server';
+import type { Branch, DetectedBuild } from "@/models/build";
+import pg from "@/db";
 
 export async function latestBuildOnBranch(
   branch: Branch

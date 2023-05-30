@@ -1,4 +1,4 @@
-.build-header {
+.buildHeader {
   padding: 2rem;
   margin: 0 -2rem;
   display: flex;
@@ -12,12 +12,12 @@
   border-bottom: solid 1px hsl(var(--hue) 30% 35%);
 }
 
-.build-header:not(.build-dual) .build-branch,
-.build-header .build-branch-dual {
+.buildHeader:not(.buildDual) .buildBranch,
+.buildHeader .buildBranchDual {
   color: hsl(var(--hue) 40% 75%);
 }
 
-.build-header.build-dual {
+.buildHeader.buildDual {
   background-image: linear-gradient(
     to bottom,
     hsl(var(--c-canary-hue) 70% 50% / 15%),
@@ -26,59 +26,59 @@
   border-top: solid 1px hsl(var(--c-canary-hue) 30% 35%);
 }
 
-.build-header.build-dual .build-name {
+.buildHeader.buildDual .buildName {
   display: flex;
   flex-flow: row nowrap;
   align-items: last baseline;
   column-gap: 0.5rem;
 }
 
-.build-header .unemphasized {
+.buildHeader .unemphasized {
   color: #ddd;
   font-weight: normal;
 }
 
-.build-header.build-dual .build-branch {
+.buildHeader.buildDual .buildBranch {
   display: flex;
   flex-flow: column nowrap;
   row-gap: 1rem;
 }
 
-.build-header.build-canary {
+.buildHeader.build-canary {
   --hue: var(--c-canary-hue);
 }
 
-.build-header.build-ptb,
-.build-header.build-dual {
+.buildHeader.build-ptb,
+.buildHeader.buildDual {
   --hue: var(--c-ptb-hue);
 }
 
-.build-header.build-stable {
+.buildHeader.build-stable {
   --hue: var(--c-stable-hue);
 }
 
-.build-header .build-metadata {
+.buildHeader .buildMetadata {
   margin-left: auto;
   font-family: var(--condensed-sans-serif);
   opacity: 0.7;
   font-size: 140%;
 }
 
-.build-header .build-absolute-timestamp {
+.buildHeader .buildAbsoluteTimestamp {
   font-size: 80%;
 }
 
-.build-header .build-timestamps {
+.buildHeader .buildTimestamps {
   text-align: right;
 }
 
-.build-header .build-name {
+.buildHeader .buildName {
   color: #ddd;
   font-size: 4rem;
   line-height: 1;
   font-weight: bold;
 }
 
-.build-header .build-number {
+.buildHeader .buildNumber {
   font-size: 80%;
 }

@@ -1,22 +1,18 @@
-import React from 'react';
-import { json, LinksFunction, SerializeFrom } from '@remix-run/node';
-import { useLoaderData } from '@remix-run/react';
-import { appBranches, Branch, DetectedBuild } from '~/build';
-import { latestBuildOnBranch } from '~/build.server';
-import BuildHeader from '~/components/BuildHeader';
-import buildHeaderStyles from '~/components/BuildHeader.css';
-import historicalBuildsStyles from '~/styles/historicalBuilds.css';
-import WrappingBuildsListStyles from '~/components/WrappingBuildsList.css';
-import pg from '~/db.server';
-import WrappingBuildsList from '~/components/WrappingBuildsList';
+import React from "react";
+import { appBranches, Branch, DetectedBuild } from "@/models/build";
+import { latestBuildOnBranch } from "@/db/build";
+import BuildHeader from "@/components/BuildHeader";
+import pg from "@/db";
+import WrappingBuildsList from "@/components/WrappingBuildsList";
+import styles from "./page.module.css";
 
-export const links: LinksFunction = () => [
-  { rel: 'stylesheet', href: buildHeaderStyles },
-  { rel: 'stylesheet', href: historicalBuildsStyles },
-  { rel: 'stylesheet', href: WrappingBuildsListStyles },
-];
+const dateFormatter = new Intl.DateTimeFormat(undefined, {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+});
 
-export async function loader() {
+export default async function Index() {
   const [latestBuildsEntries, historicalBuildsRows] = await Promise.all([
     Promise.all(
       appBranches.map((branch) =>
@@ -36,41 +32,16 @@ export async function loader() {
     [branch in Exclude<Branch, Branch.Development>]: DetectedBuild;
   };
 
-  let historicalBuilds: DetectedBuild[] = historicalBuildsRows.rows.map(
-    (row) => ({
-      branch: row.branch,
-      number: row.build_number,
-      id: row.build_id,
-      detectedAt: row.detected_at,
-    })
-  );
-
-  return json({ latest: latestBuilds, historical: historicalBuilds });
-}
-
-function deserializeBuild(
-  // A bit of a hack to access the serialized type of `Build`.
-  build: SerializeFrom<typeof loader>['latest']['canary']
-): DetectedBuild {
-  return { ...build, detectedAt: new Date(build.detectedAt) };
-}
-
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  weekday: 'short',
-  month: 'short',
-  day: 'numeric',
-});
-
-export default function Index() {
-  const data = useLoaderData<typeof loader>();
+  let historical: DetectedBuild[] = historicalBuildsRows.rows.map((row) => ({
+    branch: row.branch,
+    number: row.build_number,
+    id: row.build_id,
+    detectedAt: row.detected_at,
+  }));
 
   const latest = Object.fromEntries(
-    Object.entries(data.latest).map(([branch, build]) => [
-      branch,
-      deserializeBuild(build),
-    ])
+    Object.entries(latestBuilds).map(([branch, build]) => [branch, build])
   ) as { [branch in Branch]: DetectedBuild };
-  const historical: DetectedBuild[] = data.historical.map(deserializeBuild);
 
   let today = historical[0].detectedAt;
   let builds: DetectedBuild[] = [];
@@ -107,15 +78,15 @@ export default function Index() {
         <BuildHeader branch={Branch.Stable} build={latest.stable} />
       </section>
       <section className="historical-builds">
-        <h2 style={{ marginTop: '2rem' }}>Recent Builds</h2>
-        <div className="historical-builds-calendar">
+        <h2 style={{ marginTop: "2rem" }}>Recent Builds</h2>
+        <div className={styles.historicalBuildsCalendar}>
           {calendarized.map(({ day, builds }) => (
             <React.Fragment key={day.toUTCString()}>
               <h3 title={day.toLocaleString()} suppressHydrationWarning>
                 {dateFormatter.format(day)}
                 <br />
                 <small>
-                  {builds.length} build{builds.length === 1 ? '' : 's'}
+                  {builds.length} build{builds.length === 1 ? "" : "s"}
                 </small>
               </h3>
               <WrappingBuildsList latestBuilds={latest} builds={builds} />

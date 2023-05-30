@@ -1,10 +1,10 @@
-.wrapping-builds-list {
+.wrappingBuildsList {
   display: flex;
   flex-flow: row wrap;
   gap: 0.5rem;
 }
 
-.wrapping-builds-list .build {
+.wrappingBuildsList .build {
   font-family: var(--condensed-sans-serif);
   padding: 0.1em 0.2em;
   background: hsl(var(--hue) 40% 20%);
@@ -13,7 +13,7 @@
   line-height: 1.2;
 }
 
-.wrapping-builds-list .build.build-collapsed {
+.wrappingBuildsList .build.buildCollapsed {
   background-image: linear-gradient(
     to right,
     hsl(var(--c-canary-hue) 40% 20%) 50%,
@@ -21,6 +21,6 @@
   );
 }
 
-.wrapping-builds-list .build.build-current {
+.wrappingBuildsList .build.buildCurrent {
   opacity: unset;
 }

@@ -1,0 +1,73 @@
+@layer base {
+  :root {
+    --system-sans-serif: -apple-system, blinkmacsystemfont, 'Source Sans Pro',
+      'Lato', 'Arimo', 'Droid Sans', 'Noto Sans', 'DejaVu Sans', 'Segoe UI',
+      system-ui, sans-serif;
+
+    --c-page-background: #111;
+    --c-page-foreground: #b8b8b8;
+    --c-canary-hue: 35;
+    --c-ptb-hue: 220;
+    --c-stable-hue: 120;
+  }
+
+  .build-canary {
+    --hue: var(--c-canary-hue);
+  }
+
+  .build-ptb {
+    --hue: var(--c-ptb-hue);
+  }
+
+  .build-stable {
+    --hue: var(--c-stable-hue);
+  }
+
+  html {
+    font-family: var(--sans-serif), var(--system-sans-serif);
+    font-size: 16px;
+    line-height: 1.4;
+    background-color: var(--c-page-background);
+    color: var(--c-page-foreground);
+  }
+  
+  body {
+    margin: 0;
+    font-family: var(--sans-serif);
+  }
+
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 1rem 0;
+  }
+
+  h2 {
+    font-family: var(--expanded-sans-serif);
+    font-weight: normal;
+    font-variant: all-small-caps;
+    line-height: 1;
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: baseline;
+  }
+
+  .emphasis-badge {
+    font-size: 60%;
+    background-color: var(--c-page-foreground);
+    color: var(--c-page-background);
+    padding: 0.2em 0.5em;
+    margin-left: 0.5rem;
+    border-radius: 0.5rem;
+    font-variant: initial;
+    opacity: 0.7;
+  }
+
+  main {
+    margin: 2rem;
+  }
+}

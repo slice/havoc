@@ -1,16 +1,16 @@
-.historical-builds-calendar {
+.historicalBuildsCalendar {
   display: grid;
   grid-template-columns: max-content 1fr;
   gap: 1rem;
   align-items: baseline;
 }
 
-.historical-builds-calendar h3 {
+.historicalBuildsCalendar h3 {
   text-align: right;
   margin: 0;
 }
 
-.historical-builds-calendar h3 small {
+.historicalBuildsCalendar h3 small {
   font-weight: normal;
   font-size: 80%;
   opacity: 0.8;
