@@ -1,24 +1,15 @@
 import "server-only";
-import { Pool, Client } from "pg";
+import SQLite3 from "better-sqlite3";
 
-let pg: Pool | Client;
+let db: SQLite3.Database;
 
-const globalForPostgres = global as unknown as {
-  pg: Pool | Client | undefined;
-};
-
-if (process.env.NODE_ENV === "production") {
-  console.log("[database] Creating Postgres pool (production).");
-  pg = new Pool();
-  pg.connect();
-} else {
-  if (!globalForPostgres.pg) {
-    // Don't bother creating a connection pool, because it'll be recreated on
-    // every request: https://github.com/vercel/next.js/issues/44330
-    globalForPostgres.pg = new Client();
-    globalForPostgres.pg.connect();
-  }
-  pg = globalForPostgres.pg;
+const SQLITE_URL = process.env.SQLITE_URL;
+if (SQLITE_URL == null) {
+  throw new Error("No $SQLITE_URL specified");
 }
 
-export default pg;
+db = new SQLite3(SQLITE_URL);
+db.pragma("foreign_keys = ON");
+db.pragma("journal_mode = WAL");
+
+export default db;

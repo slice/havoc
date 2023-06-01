@@ -2,7 +2,7 @@ import React from "react";
 import { appBranches, Branch, DetectedBuild } from "@/models/build";
 import { latestBuildOnBranch } from "@/db/build";
 import BuildHeader from "@/components/BuildHeader";
-import pg from "@/db";
+import db from "@/db";
 import WrappingBuildsList from "@/components/WrappingBuildsList";
 import styles from "./page.module.css";
 
@@ -13,30 +13,28 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 });
 
 export default async function Index() {
-  const [latestBuildsEntries, historicalBuildsRows] = await Promise.all([
-    Promise.all(
-      appBranches.map((branch) =>
-        latestBuildOnBranch(branch).then((result) => [branch, result])
-      )
-    ),
-    pg.query(`
-        SELECT branch, build_number, build_id, detected_at
-        FROM detections
-        WHERE detected_at > (current_timestamp - INTERVAL '7 days')
-        ORDER BY detected_at DESC
-      `),
+  let latestBuildsEntries = appBranches.map((branch) => [
+    branch,
+    latestBuildOnBranch(branch),
   ]);
+  let historicalStatement = db.prepare(`
+    SELECT branch, build_number, build_id, detected_at
+    FROM detections
+    WHERE detected_at > strftime('%s', 'now', '-7 days')
+    ORDER BY detected_at DESC
+  `);
+  let historicalBuildsRows = historicalStatement.all() as any[];
 
   // When will TypeScript properly support this :pensive:
   let latestBuilds = Object.fromEntries(latestBuildsEntries) as {
     [branch in Exclude<Branch, Branch.Development>]: DetectedBuild;
   };
 
-  let historical: DetectedBuild[] = historicalBuildsRows.rows.map((row) => ({
+  let historical: DetectedBuild[] = historicalBuildsRows.map((row) => ({
     branch: row.branch,
     number: row.build_number,
     id: row.build_id,
-    detectedAt: row.detected_at,
+    detectedAt: new Date(row.detected_at * 1000),
   }));
 
   const latest = Object.fromEntries(
