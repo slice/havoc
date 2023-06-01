@@ -1,7 +1,9 @@
 import { PT_Sans, PT_Sans_Caption, PT_Sans_Narrow } from "next/font/google";
 import Link from "next/link";
+import localFont from "next/font/local";
 import "@/styles/base.css";
 import styles from "./layout.module.css";
+import classNames from "classnames";
 
 const PTSans = PT_Sans({
   subsets: ["latin"],
@@ -17,6 +19,11 @@ const PTSansNarrow = PT_Sans_Narrow({
   subsets: ["latin"],
   weight: ["400", "700"],
   variable: "--condensed-sans-serif",
+});
+const ConcourseIndex = localFont({
+  src: "../../public/fonts/concourse_index_regular.woff2",
+  variable: "--concourse-index",
+  display: "swap",
 });
 
 const iconPath =
@@ -35,7 +42,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${PTSans.variable} ${PTSansCaption.variable} ${PTSansNarrow.variable}`}
+        className={classNames(
+          PTSans.variable,
+          PTSansCaption.variable,
+          PTSansNarrow.variable,
+          ConcourseIndex.variable
+        )}
       >
         <header className={styles.mainHeader}>
           <div className={styles.brand}>spectacles</div>

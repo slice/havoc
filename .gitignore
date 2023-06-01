@@ -9,6 +9,8 @@
 *.db
 *.db-shm
 *.db-wal
+/*.csv
+/*.sql
 
 node_modules
 .next

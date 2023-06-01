@@ -1,0 +1,43 @@
+.buildInformation {
+  margin: 2rem 0;
+}
+
+.buildHash {
+  font-size: 90%;
+  color: hsl(0deg 0% 60%);
+  background-color: hsl(0deg 0% 15%);
+  padding: 0.5em;
+  border-radius: 0.25rem;
+}
+
+.detectionList {
+  padding-left: 37px;
+}
+
+.detectionList li {
+  margin: 0.2rem 0;
+}
+
+.detectionList li::marker {
+  font-family: var(--concourse-index);
+}
+
+.branchLabel {
+  background-color: hsl(var(--hue) 30% 30% / 70%);
+  border-radius: 0.25rem;
+}
+
+.detectionPrev {
+  margin: 0.2rem 0 0.7rem;
+  font-size: 0.8em;
+}
+
+.assetList {
+  list-style-type: none;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.assetList li {
+  font-size: 90%;
+}

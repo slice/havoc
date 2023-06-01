@@ -17,6 +17,16 @@
   color: hsl(var(--hue) 40% 75%);
 }
 
+.buildPlain {
+  background-image: linear-gradient(
+    to bottom,
+    transparent,
+    hsl(0deg 0% 30% / 15%)
+  );
+  border-top: solid 1px hsl(0deg 0% 30%);
+  border-bottom: solid 1px hsl(0deg 0% 30%);
+}
+
 .buildHeader.buildDual {
   background-image: linear-gradient(
     to bottom,
@@ -81,4 +91,8 @@
 
 .buildHeader .buildNumber {
   font-size: 80%;
+}
+
+.mergeWithNavigation {
+  margin-top: calc(-2rem - 1px);
 }

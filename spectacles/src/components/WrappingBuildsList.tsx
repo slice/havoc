@@ -2,6 +2,7 @@ import classNames from "classnames";
 import { Branch, DetectedBuild } from "@/models/build";
 import { collapseBranches } from "@/models/collapsing";
 import styles from "./WrappingBuildsList.module.css";
+import Link from "next/link";
 
 const timeFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: "long",
@@ -30,7 +31,8 @@ export default function WrappingBuildsList(props: {
           : latestVersion(build.branch) === build.number;
 
         return (
-          <div
+          <Link
+            href={`/build/${build.number}`}
             className={classNames(
               styles.build,
               `build-${build.branch}`,
@@ -42,7 +44,7 @@ export default function WrappingBuildsList(props: {
             key={build.detectedAt.getTime()}
           >
             {build.number}
-          </div>
+          </Link>
         );
       })}
     </div>
