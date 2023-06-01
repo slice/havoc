@@ -21,4 +21,4 @@ toml = "0.5"
 tokio = { version = "1.21.2", features = ["full"] }
 axum = "0.6.10"
 tower-http = { version = "0.3.4", features = ["trace"] }
-sqlx = { version = "0.6", features = [ "runtime-tokio-native-tls", "postgres", "chrono" ] }
+sqlx = { version = "0.6", features = [ "runtime-tokio-native-tls", "sqlite", "chrono" ] }

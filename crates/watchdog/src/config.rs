@@ -3,7 +3,7 @@ use serde::Deserialize;
 use crate::subscription::Subscription;
 
 #[derive(Clone, Deserialize)]
-pub struct PostgresConfig {
+pub struct SqliteConfig {
     pub url: String,
 
     #[serde(default = "default_max_connections")]
@@ -19,5 +19,5 @@ pub struct Config {
     pub interval_milliseconds: u64,
     pub subscriptions: Vec<Subscription>,
     pub http_api_server_bind_address: std::net::SocketAddr,
-    pub postgres: PostgresConfig,
+    pub sqlite: SqliteConfig,
 }

@@ -1,15 +1,24 @@
+use std::str::FromStr;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use watchdog::config::Config;
 use watchdog::db::Db;
 
 async fn run(config: Config) -> Result<()> {
-    tracing::info!("connecting to postgres: {}", config.postgres.url);
+    tracing::info!(
+        "connecting to sqlite @ {} (max connections: {})",
+        config.sqlite.url,
+        config.sqlite.max_connections
+    );
 
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(config.postgres.max_connections)
-        .connect(&config.postgres.url)
+    let connect_options = SqliteConnectOptions::from_str(&config.sqlite.url)?
+        .foreign_keys(true)
+        .journal_mode(SqliteJournalMode::Wal);
+    let pool = SqlitePoolOptions::new()
+        .max_connections(config.sqlite.max_connections)
+        .connect_with(connect_options)
         .await?;
 
     let db = Db::new(pool);
