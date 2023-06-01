@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS build_deploys (
   build_id TEXT NOT NULL,
   -- Values: "canary", "ptb", "stable", "development"
   branch TEXT NOT NULL,
-  detected_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f')),
+  detected_at INTEGER NOT NULL DEFAULT (strftime('%s')),
 
   FOREIGN KEY (build_id) REFERENCES builds(build_id)
 );
