@@ -14,6 +14,7 @@ import classNames from "classnames";
 import { format, formatDistance } from "date-fns";
 import Link from "next/link";
 import { fetchBuildAssets } from "@/db/asset";
+import Copier, { CopiableCodeBlock, CopiableLink } from "@/components/Copier";
 
 function BranchLabel({ branch }: { branch: Branch }) {
   return (
@@ -119,20 +120,27 @@ export default async function BuildDetails({
             previousBuilds={previousBuilds}
           />
 
-          <h2>Hash</h2>
-          <p>
-            <code className={styles.buildHash}>{build.id}</code>
+          <p
+            title="Hold down any modifier key to disable this behavior."
+            style={{
+              textDecoration: "underline dotted hsl(0deg 0% 100% / 50%)",
+            }}
+          >
+            Click things below to copy them.
           </p>
+
+          <h2>Hash</h2>
+          <CopiableCodeBlock className={styles.buildHash}>
+            {build.id}
+          </CopiableCodeBlock>
+
           <h2>Assets</h2>
           <ul className={styles.assetList}>
             {assets.map((asset) => (
               <li key={asset.name}>
-                <a
-                  href={`https://discord.com/assets/${asset.name}`}
-                  rel="noreferrer"
-                >
+                <CopiableLink href={`https://discord.com/assets/${asset.name}`}>
                   <code>{asset.name}</code>
-                </a>
+                </CopiableLink>
               </li>
             ))}
           </ul>

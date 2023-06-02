@@ -1,0 +1,7 @@
+.copier {
+  cursor: copy;
+}
+
+a.copier:hover {
+  text-decoration: none;
+}
