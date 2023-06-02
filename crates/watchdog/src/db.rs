@@ -60,14 +60,9 @@ impl Db {
             .iter()
             .filter_by_type(FeAssetType::Css)
         {
-            insert_asset(
-                &mut transaction,
-                stylesheet,
-                DetectedAssetKind::Surface,
-                None,
-            )
-            .await?;
-            associate_asset(&mut transaction, build, stylesheet).await?;
+            let mut c = Cataloger::new(stylesheet);
+            c.insert(&mut transaction).await?;
+            c.associate(&mut transaction, build).await?;
         }
 
         let chunks = extract_assets_from_chunk_loader(&build.manifest, cache).await?;
@@ -76,14 +71,11 @@ impl Db {
                 .try_into()
                 .expect("chunk id couldn't fit into i32");
 
-            insert_asset(
-                &mut transaction,
-                chunk_asset,
-                DetectedAssetKind::Deep,
-                Some(chunk_id),
-            )
-            .await?;
-            associate_asset(&mut transaction, build, chunk_asset).await?;
+            let mut c = Cataloger::new(chunk_asset)
+                .kind(DetectedAssetKind::Deep)
+                .chunk_id(Some(chunk_id));
+            c.insert(&mut transaction).await?;
+            c.associate(&mut transaction, build).await?;
         }
 
         for (script, detected_kind) in build
@@ -93,14 +85,10 @@ impl Db {
             .filter_by_type(FeAssetType::Js)
             .zip(RootScript::assumed_ordering().into_iter())
         {
-            insert_asset(
-                &mut transaction,
-                script,
-                DetectedAssetKind::SurfaceScript(detected_kind),
-                None,
-            )
-            .await?;
-            associate_asset(&mut transaction, build, script).await?;
+            let mut c =
+                Cataloger::new(script).kind(DetectedAssetKind::SurfaceScript(detected_kind));
+            c.insert(&mut transaction).await?;
+            c.associate(&mut transaction, build).await?;
         }
 
         transaction.commit().await?;
@@ -158,50 +146,71 @@ impl Db {
     }
 }
 
-async fn insert_asset(
-    transaction: &mut sqlx::Transaction<'_, Postgres>,
-    asset: &FeAsset,
-    kind: DetectedAssetKind,
+struct Cataloger<'a> {
+    asset: &'a FeAsset,
     chunk_id: Option<i32>,
-) -> Result<()> {
-    let surface_script_type = match kind {
-        DetectedAssetKind::Deep | DetectedAssetKind::Surface => "NULL".to_owned(),
-        DetectedAssetKind::SurfaceScript(kind) => {
-            format!("'{:?}'", kind).to_lowercase() + "::surface_script_type"
-        }
-    };
-
-    sqlx::query(&format!(
-        "INSERT INTO assets (name, surface, surface_script_type, script_chunk_id)
-        VALUES ($1, $2, {determined_surface_script_type}, $3)
-        ON CONFLICT DO NOTHING",
-        determined_surface_script_type = surface_script_type
-    ))
-    .bind(asset.filename())
-    .bind(kind.is_surface())
-    .bind(chunk_id)
-    .execute(transaction)
-    .await?;
-
-    Ok(())
+    kind: DetectedAssetKind,
 }
 
-async fn associate_asset(
-    transaction: &mut sqlx::Transaction<'_, Postgres>,
-    build: &FeBuild,
-    asset: &FeAsset,
-) -> Result<()> {
-    tracing::debug!(?build.number, asset = asset.filename(), "associating asset");
+impl<'a> Cataloger<'a> {
+    fn new(asset: &'a FeAsset) -> Self {
+        Self {
+            asset,
+            chunk_id: None,
+            kind: DetectedAssetKind::Surface,
+        }
+    }
 
-    sqlx::query(
-        "INSERT INTO build_assets (build_id, asset_name)
-        VALUES ($1, $2)
-        ON CONFLICT DO NOTHING",
-    )
-    .bind(&build.manifest.hash)
-    .bind(asset.filename())
-    .execute(transaction)
-    .await?;
+    fn kind(mut self, kind: DetectedAssetKind) -> Self {
+        self.kind = kind;
+        self
+    }
 
-    Ok(())
+    fn chunk_id(mut self, chunk_id: Option<i32>) -> Self {
+        self.chunk_id = chunk_id;
+        self
+    }
+
+    async fn insert(&mut self, transaction: &mut sqlx::Transaction<'_, Postgres>) -> Result<()> {
+        let surface_script_type = match self.kind {
+            DetectedAssetKind::Deep | DetectedAssetKind::Surface => "NULL".to_owned(),
+            DetectedAssetKind::SurfaceScript(kind) => {
+                format!("'{:?}'", kind).to_lowercase() + "::surface_script_type"
+            }
+        };
+
+        sqlx::query(&format!(
+            "INSERT INTO assets (name, surface, surface_script_type, script_chunk_id)
+            VALUES ($1, $2, {determined_surface_script_type}, $3)
+            ON CONFLICT DO NOTHING",
+            determined_surface_script_type = surface_script_type
+        ))
+        .bind(self.asset.filename())
+        .bind(self.kind.is_surface())
+        .bind(self.chunk_id)
+        .execute(transaction)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn associate(
+        &mut self,
+        transaction: &mut sqlx::Transaction<'_, Postgres>,
+        build: &FeBuild,
+    ) -> Result<()> {
+        tracing::debug!(?build.number, asset = self.asset.filename(), "associating asset");
+
+        sqlx::query(
+            "INSERT INTO build_assets (build_id, asset_name)
+            VALUES ($1, $2)
+            ON CONFLICT DO NOTHING",
+        )
+        .bind(&build.manifest.hash)
+        .bind(self.asset.filename())
+        .execute(transaction)
+        .await?;
+
+        Ok(())
+    }
 }
