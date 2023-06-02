@@ -36,7 +36,7 @@ impl Db {
     pub async fn last_known_build_hash_on_branch(&self, branch: Branch) -> Result<Option<String>> {
         Ok(sqlx::query(
             "SELECT build_id
-            FROM detected_builds_on_branches
+            FROM build_deploys
             WHERE branch = $1::discord_branch
             ORDER BY detected_at DESC
             LIMIT 1",
@@ -47,33 +47,12 @@ impl Db {
         .map(|row: PgRow| row.get(0)))
     }
 
-    pub async fn detected_assets(&self, build: &FeBuild, cache: &mut AssetCache) -> Result<()> {
+    pub async fn catalog_and_extract_assets(
+        &self,
+        build: &FeBuild,
+        cache: &mut AssetCache,
+    ) -> Result<()> {
         let mut transaction = self.pool.begin().await?;
-
-        async fn detected_asset(
-            transaction: &mut sqlx::Transaction<'_, Postgres>,
-            build: &FeBuild,
-            asset: &FeAsset,
-            kind: DetectedAssetKind,
-        ) -> Result<()> {
-            sqlx::query(&format!(
-                "INSERT INTO detected_assets (build_id, surface, determined_surface_script_type, name)
-                VALUES ($1, $2, {determined_surface_script_type}, $3)
-                ON CONFLICT DO NOTHING",
-                determined_surface_script_type = match kind {
-                    DetectedAssetKind::Deep | DetectedAssetKind::Surface => "NULL".to_owned(),
-                    DetectedAssetKind::SurfaceScript(kind) =>
-                        format!("'{:?}'", kind).to_lowercase() + "::surface_script_type",
-                }
-            ))
-            .bind(&build.manifest.hash)
-            .bind(kind.is_surface())
-            .bind(asset.filename())
-            .execute(transaction)
-            .await?;
-
-            Ok(())
-        }
 
         for stylesheet in build
             .manifest
@@ -81,34 +60,30 @@ impl Db {
             .iter()
             .filter_by_type(FeAssetType::Css)
         {
-            detected_asset(
+            insert_asset(
                 &mut transaction,
-                build,
                 stylesheet,
                 DetectedAssetKind::Surface,
+                None,
             )
             .await?;
+            associate_asset(&mut transaction, build, stylesheet).await?;
         }
 
         let chunks = extract_assets_from_chunk_loader(&build.manifest, cache).await?;
         for (chunk_id, chunk_asset) in chunks.iter() {
-            detected_asset(
+            let chunk_id = (*chunk_id)
+                .try_into()
+                .expect("chunk id couldn't fit into i32");
+
+            insert_asset(
                 &mut transaction,
-                build,
                 chunk_asset,
                 DetectedAssetKind::Deep,
+                Some(chunk_id),
             )
             .await?;
-
-            sqlx::query(
-                "INSERT INTO asset_chunk_ids (build_id, name, chunk_id)
-                VALUES ($1, $2, $3)",
-            )
-            .bind(&build.manifest.hash)
-            .bind(chunk_asset.filename())
-            .bind(i32::try_from(*chunk_id).expect("chunk id doesn't fit in an i32"))
-            .execute(&mut transaction)
-            .await?;
+            associate_asset(&mut transaction, build, chunk_asset).await?;
         }
 
         for (script, detected_kind) in build
@@ -118,13 +93,14 @@ impl Db {
             .filter_by_type(FeAssetType::Js)
             .zip(RootScript::assumed_ordering().into_iter())
         {
-            detected_asset(
+            insert_asset(
                 &mut transaction,
-                build,
                 script,
                 DetectedAssetKind::SurfaceScript(detected_kind),
+                None,
             )
             .await?;
+            associate_asset(&mut transaction, build, script).await?;
         }
 
         transaction.commit().await?;
@@ -134,7 +110,7 @@ impl Db {
     /// Check whether a build hash is present in the database.
     pub async fn build_hash_is_catalogued(&self, build_hash: &str) -> Result<bool> {
         Ok(
-            sqlx::query("SELECT build_id FROM detected_builds WHERE build_id = $1")
+            sqlx::query("SELECT build_id FROM builds WHERE build_id = $1")
                 .bind(build_hash)
                 .fetch_optional(&self.pool)
                 .await?
@@ -158,7 +134,7 @@ impl Db {
         let mut transaction = self.pool.begin().await?;
 
         sqlx::query(
-            "INSERT INTO detected_builds (build_id, build_number)
+            "INSERT INTO builds (build_id, build_number)
             VALUES ($1, $2)
             ON CONFLICT DO NOTHING",
         )
@@ -168,7 +144,7 @@ impl Db {
         .await?;
 
         sqlx::query(
-            "INSERT INTO detected_builds_on_branches (build_id, branch)
+            "INSERT INTO build_deploys (build_id, branch)
             VALUES ($1, $2::discord_branch)",
         )
         .bind(&hash)
@@ -180,4 +156,52 @@ impl Db {
 
         Ok(())
     }
+}
+
+async fn insert_asset(
+    transaction: &mut sqlx::Transaction<'_, Postgres>,
+    asset: &FeAsset,
+    kind: DetectedAssetKind,
+    chunk_id: Option<i32>,
+) -> Result<()> {
+    let surface_script_type = match kind {
+        DetectedAssetKind::Deep | DetectedAssetKind::Surface => "NULL".to_owned(),
+        DetectedAssetKind::SurfaceScript(kind) => {
+            format!("'{:?}'", kind).to_lowercase() + "::surface_script_type"
+        }
+    };
+
+    sqlx::query(&format!(
+        "INSERT INTO assets (name, surface, surface_script_type, script_chunk_id)
+        VALUES ($1, $2, {determined_surface_script_type}, $3)
+        ON CONFLICT DO NOTHING",
+        determined_surface_script_type = surface_script_type
+    ))
+    .bind(asset.filename())
+    .bind(kind.is_surface())
+    .bind(chunk_id)
+    .execute(transaction)
+    .await?;
+
+    Ok(())
+}
+
+async fn associate_asset(
+    transaction: &mut sqlx::Transaction<'_, Postgres>,
+    build: &FeBuild,
+    asset: &FeAsset,
+) -> Result<()> {
+    tracing::debug!(?build.number, asset = asset.filename(), "associating asset");
+
+    sqlx::query(
+        "INSERT INTO build_assets (build_id, asset_name)
+        VALUES ($1, $2)
+        ON CONFLICT DO NOTHING",
+    )
+    .bind(&build.manifest.hash)
+    .bind(asset.filename())
+    .execute(transaction)
+    .await?;
+
+    Ok(())
 }

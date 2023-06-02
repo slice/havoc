@@ -32,7 +32,7 @@ pub async fn detect_changes_on_branch(
     db.detected_build_change_on_branch(&build, branch).await?;
 
     if !build_was_previously_catalogued {
-        db.detected_assets(&build, &mut cache).await?;
+        db.catalog_and_extract_assets(&build, &mut cache).await?;
     } else {
         tracing::info!(?branch, ?build.number, ?build.manifest.hash, "avoiding build asset scrape, already in database");
     }
