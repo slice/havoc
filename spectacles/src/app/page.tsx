@@ -68,17 +68,33 @@ export default async function Index() {
           Latest Builds {/*<span className="emphasis-badge">live</span>*/}
         </h2>
         {latest.ptb.number === latest.canary.number ? (
-          <BuildHeader branch="dual" build={latest.canary} />
+          <BuildHeader
+            branch="dual"
+            build={latest.canary}
+            detectedAt={latest.canary.detectedAt}
+          />
         ) : (
           <>
-            <BuildHeader branch={Branch.Canary} build={latest.canary} />
-            <BuildHeader branch={Branch.PTB} build={latest.ptb} />
+            <BuildHeader
+              branch={Branch.Canary}
+              build={latest.canary}
+              detectedAt={latest.canary.detectedAt}
+            />
+            <BuildHeader
+              branch={Branch.PTB}
+              build={latest.ptb}
+              detectedAt={latest.ptb.detectedAt}
+            />
           </>
         )}
-        <BuildHeader branch={Branch.Stable} build={latest.stable} />
+        <BuildHeader
+          branch={Branch.Stable}
+          build={latest.stable}
+          detectedAt={latest.stable.detectedAt}
+        />
       </section>
       <section className="historical-builds">
-        <h2 style={{ marginTop: "2rem" }}>Recent Builds</h2>
+        <h2 style={{ marginTop: "2rem" }}>Last 7 Days of Builds</h2>
         <div className={styles.historicalBuildsCalendar}>
           {calendarized.map(({ day, builds }) => (
             <React.Fragment key={day.toUTCString()}>

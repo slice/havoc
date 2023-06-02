@@ -1,7 +1,7 @@
 @layer base {
   :root {
-    --system-sans-serif: -apple-system, blinkmacsystemfont, 'Source Sans Pro',
-      'Lato', 'Arimo', 'Droid Sans', 'Noto Sans', 'DejaVu Sans', 'Segoe UI',
+    --system-sans-serif: -apple-system, blinkmacsystemfont, "Source Sans Pro",
+      "Lato", "Arimo", "Droid Sans", "Noto Sans", "DejaVu Sans", "Segoe UI",
       system-ui, sans-serif;
 
     --c-page-background: #111;
@@ -30,12 +30,20 @@
     background-color: var(--c-page-background);
     color: var(--c-page-foreground);
   }
-  
+
+  a {
+    color: hsl(280deg 50% 70%);
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
   body {
     margin: 0;
     font-family: var(--sans-serif);
   }
-
 
   h1,
   h2,
