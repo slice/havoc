@@ -7,6 +7,10 @@
 /havoc_*.json
 /*.js
 *.db
+*.db-wal
+*.db-shm
+/*.csv
+/*.sql
 
 node_modules
 .next
