@@ -1,5 +1,12 @@
 .buildInformation {
   margin: 2rem 0;
+  display: grid;
+  grid-template-columns: min-content 1fr;
+  column-gap: 2rem;
+}
+
+.buildInformation > * > *:first-child {
+  margin-top: 0;
 }
 
 .buildHash {

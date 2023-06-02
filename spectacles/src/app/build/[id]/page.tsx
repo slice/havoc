@@ -145,6 +145,7 @@ export default async function BuildDetails({
             ))}
           </ul>
         </section>
+        <section>spooky</section>
       </div>
     </>
   );
