@@ -157,7 +157,6 @@ pub async fn scrape_fe_build(
     // interested in.
     let entrypoint_asset = fe_manifest
         .assets
-        .as_slice()
         .find_root_script(RootScript::Entrypoint)
         .expect(
             "unable to locate entrypoint root script; discord has updated their /channels/@me html",
