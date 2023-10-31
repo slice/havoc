@@ -179,37 +179,31 @@ async fn print_build(
         Ok(())
     };
 
-    for (asset, root_script_type) in assets
-        .iter()
-        .filter_by_type(FeAssetType::Js)
-        .zip(RootScript::assumed_ordering().into_iter())
-    {
-        match root_script_type {
-            RootScript::ChunkLoader if matches.get_flag("deep") => {
-                if matches.get_flag("deep") {
-                    let script_chunks = extract_assets_from_chunk_loader(&build.manifest, cache)
-                        .await
-                        .context("failed to extract assets from chunk loader")?;
-                    write_asset_plain(
-                        asset,
-                        Some(format!(
-                            "chunk loader, {} script chunks",
-                            script_chunks.len()
-                        )),
-                    )?;
+    let scripts = assets.filter_by_type(FeAssetType::Js).collect::<Vec<_>>();
+    let chunkloader_index = RootScript::ChunkLoader.assumed_index_within_scripts(scripts.len());
 
-                    for (chunk_id, script_chunk) in script_chunks.iter().take(7) {
-                        println!("\t\t{}: {}", chunk_id, script_chunk.filename());
-                    }
-                    println!("\t\t...");
-                }
+    for (index, asset) in scripts.iter().enumerate() {
+        if chunkloader_index == Some(index) && matches.get_flag("deep") {
+            let script_chunks = extract_assets_from_chunk_loader(&build.manifest, cache)
+                .await
+                .context("failed to extract assets from chunk loader")?;
+            write_asset_plain(
+                asset,
+                Some(format!(
+                    "chunk loader, {} script chunks",
+                    script_chunks.len()
+                )),
+            )?;
+
+            for (chunk_id, script_chunk) in script_chunks.iter().take(7) {
+                println!("\t\t{}: {}", chunk_id, script_chunk.filename());
             }
-            _ => {
-                write_asset_plain(asset, Some(format!("{}", root_script_type)))?;
-            }
+            println!("\t\t...");
+        } else {
+            write_asset_plain(asset, None)?;
         }
     }
-    for asset in assets.iter().filter_by_type(FeAssetType::Css) {
+    for asset in assets.filter_by_type(FeAssetType::Css) {
         write_asset_plain(asset, None)?;
     }
 

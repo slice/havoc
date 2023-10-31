@@ -18,12 +18,11 @@ async fn parse_webpack_chunk<'cache>(
     assets: &'_ [FeAsset],
     cache: &'cache mut AssetCache,
 ) -> Result<(swc_ecma_ast::Script, HashMap<ModuleId, &'cache str>), DumpError> {
-    let entrypoint_asset = assets
-        .iter()
-        .find_root_script(RootScript::Entrypoint)
-        .ok_or(ScrapeError::MissingBranchPageAssets(
+    let entrypoint_asset = assets.find_root_script(RootScript::Entrypoint).ok_or(
+        ScrapeError::MissingBranchPageAssets(
             "failed to locate root entrypoint script; discord has updated their HTML",
-        ))?;
+        ),
+    )?;
 
     let content = cache
         .preprocessed_content(entrypoint_asset)

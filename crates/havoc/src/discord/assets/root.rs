@@ -5,8 +5,8 @@ use std::fmt::Display;
 /// change at any time.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum RootScript {
-    /// A script which handles loading other Webpack chunks that aren't root
-    /// script.
+    /// A script which handles the loading of other Webpack chunks that aren't
+    /// present at the root.
     ChunkLoader,
 
     /// The Webpack chunk containing CSS chunk class mappings.
@@ -33,25 +33,24 @@ impl Display for RootScript {
 }
 
 impl RootScript {
-    /// Returns the assumed ordering of the root scripts in the application HTML.
-    ///
-    /// This is a fragile assumption that could change at any time.
-    pub fn assumed_ordering() -> [RootScript; 4] {
+    /// Given a number of script tags present in the HTML of a frontend, returns
+    /// the assumed index of the script corresponding to this `RootScript`.
+    pub fn assumed_index_within_scripts(&self, n_scripts: usize) -> Option<usize> {
         use RootScript::*;
 
-        [ChunkLoader, Classes, Vendor, Entrypoint]
-    }
-
-    /// Using the assumed ordering of the root scripts in the application HTML,
-    /// returns the index into that ordering for this root script.
-    ///
-    /// This is a fragile assumption that could change at any time.
-    pub fn assumed_index(&self) -> usize {
-        Self::assumed_ordering()
-            .iter()
-            .position(|kind| kind == self)
-            .expect(
-                "invariant violation: RootScript::assumed_ordering doesn't contain all variants",
-            )
+        match self {
+            // Seemingly always last.
+            ChunkLoader => n_scripts.checked_sub(1),
+            // Seemingly always first.
+            Classes => Some(0),
+            // Seemingly always penultimate. Nota bene: it's now no longer clear
+            // to me if the concept of an "entrypoint" still applies with
+            // Rspack. Anyhow, it's a bit of a vague term, so this needs further
+            // design.
+            Entrypoint => n_scripts.checked_sub(2),
+            // In an Rspack world, it doesn't make sense to pinpoint a specific
+            // index for this.
+            Vendor => None,
+        }
     }
 }

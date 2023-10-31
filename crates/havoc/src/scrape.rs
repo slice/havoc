@@ -104,9 +104,7 @@ pub async fn extract_assets_from_chunk_loader(
     manifest: &discord::FeManifest,
     cache: &mut AssetCache,
 ) -> Result<Vec<(ChunkId, FeAsset)>, ScrapeError> {
-    let chunk_loader = manifest
-        .assets
-        .iter()
+    let chunk_loader = (&manifest.assets)
         .find_root_script(RootScript::ChunkLoader)
         .ok_or(ScrapeError::MissingBranchPageAssets("chunk loader"))?;
     let data = cache.raw_content(chunk_loader).await?;
@@ -159,7 +157,7 @@ pub async fn scrape_fe_build(
     // interested in.
     let entrypoint_asset = fe_manifest
         .assets
-        .iter()
+        .as_slice()
         .find_root_script(RootScript::Entrypoint)
         .expect(
             "unable to locate entrypoint root script; discord has updated their /channels/@me html",
@@ -203,11 +201,13 @@ pub async fn request_branch_page(branch: discord::Branch) -> Result<IsahcRespons
 /// page.
 ///
 /// This function is designed to be used on the HTML content of `/channels/@me`
-/// pages. Currently, crude regex matching is used instead of proper parsing.
+/// pages. Currently, imprecise regex matching is used instead of parsing.
 pub fn extract_assets_from_tags(page_content: &str) -> Vec<discord::FeAsset> {
     lazy_static::lazy_static! {
-        static ref SCRIPT_TAG_RE: Regex = Regex::new(r#"<script src="/assets/(?P<name>[\.0-9a-f]+)\.js" integrity="[^"]+"></script>"#).unwrap();
-        static ref STYLE_TAG_RE: Regex = Regex::new(r#"<link rel="stylesheet" href="/assets/(?P<name>[\.0-9a-f]+)\.css" integrity="[^"]+">"#).unwrap();
+        // Crude matches, but I don't feel like bringing in a proper HTML parser
+        // unless I need to.
+        static ref SCRIPT_TAG_RE: Regex = Regex::new(r#"<script src="/assets/(?P<name>[\.0-9a-f]+)\.js""#).unwrap();
+        static ref STYLE_TAG_RE: Regex = Regex::new(r#"<link href="/assets/(?P<name>[\.0-9a-f]+)\.css""#).unwrap();
     }
 
     let collect_assets = |regex: &Regex, typ: discord::FeAssetType| {

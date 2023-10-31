@@ -109,7 +109,6 @@ impl Dump for CSSClasses {
     ) -> Result<DumpResult, DumpError> {
         let classes_asset = artifact
             .assets()
-            .iter()
             .find_root_script(RootScript::Classes)
             .ok_or(ScrapeError::MissingBranchPageAssets(
                 "failed to locate root classes script; discord has updated their /channels/@me",
