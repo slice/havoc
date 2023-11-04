@@ -15,13 +15,13 @@ pub async fn post_build_to_webhook(
     let utc_timestamp = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
     let pacific_time = Utc::now()
         .with_timezone(&chrono_tz::America::Los_Angeles)
-        .format("%b %-d, %-H:%M (%a)");
+        .format("%a %b %-d, %-H:%M");
 
     let embed = json!({
         "title": format!("{} {}", build.manifest.branch, build.number),
         "color": build.manifest.branch.color(),
         "description": format!("Hash: `{}`", build.manifest.hash),
-        "footer": {"text": format!("Pacific: {}", pacific_time)},
+        "footer": {"text": format!("Pacific Time: {}", pacific_time)},
         "timestamp": utc_timestamp
     });
 
