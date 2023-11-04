@@ -205,8 +205,8 @@ pub fn extract_assets_from_tags(page_content: &str) -> Vec<discord::FeAsset> {
     lazy_static::lazy_static! {
         // Crude matches, but I don't feel like bringing in a proper HTML parser
         // unless I need to.
-        static ref SCRIPT_TAG_RE: Regex = Regex::new(r#"<script src="/assets/(?P<name>[\.0-9a-f]+)\.js""#).unwrap();
-        static ref STYLE_TAG_RE: Regex = Regex::new(r#"<link href="/assets/(?P<name>[\.0-9a-f]+)\.css""#).unwrap();
+        static ref SCRIPT_TAG_RE: Regex = Regex::new(r#"<script src="/assets/(?P<name>[\.0-9a-z]+)\.js""#).unwrap();
+        static ref STYLE_TAG_RE: Regex = Regex::new(r#"<link href="/assets/(?P<name>[\.0-9a-z]+)\.css""#).unwrap();
     }
 
     let collect_assets = |regex: &Regex, typ: discord::FeAssetType| {
