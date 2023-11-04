@@ -153,16 +153,20 @@ pub async fn scrape_fe_build(
     fe_manifest: discord::FeManifest,
     cache: &mut AssetCache,
 ) -> Result<discord::FeBuild, ScrapeError> {
-    // locate the entrypoint script, which contains the build information we're
-    // interested in.
-    let entrypoint_asset = fe_manifest
+    let scripts = fe_manifest
         .assets
-        .find_root_script(RootScript::Entrypoint)
-        .expect(
-            "unable to locate entrypoint root script; discord has updated their /channels/@me html",
-        );
+        .filter_by_type(FeAssetType::Js)
+        .collect::<Box<[&FeAsset]>>(); // probably better than a vec since we don't need to resize
 
-    let content = cache.raw_content(entrypoint_asset).await?;
+    // FIXME: We can't rely on the static build information always being
+    // available in the penultimate script. In the future, maybe we can scan
+    // all surface scripts for it.
+    let penultimate_surface_script = scripts
+        .iter()
+        .nth_back(1)
+        .expect("failed to penultimate surface script");
+
+    let content = cache.raw_content(penultimate_surface_script).await?;
     let entrypoint_js = std::str::from_utf8(content).map_err(ScrapeError::Decoding)?;
     let (_, number) = match_static_build_information(entrypoint_js)?;
 

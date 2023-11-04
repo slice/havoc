@@ -43,11 +43,9 @@ impl RootScript {
             ChunkLoader => n_scripts.checked_sub(1),
             // Seemingly always first.
             Classes => Some(0),
-            // Seemingly always penultimate. Nota bene: it's now no longer clear
-            // to me if the concept of an "entrypoint" still applies with
-            // Rspack. Anyhow, it's a bit of a vague term, so this needs further
-            // design.
-            Entrypoint => n_scripts.checked_sub(2),
+            // Rspack combines the entrypoint and chunkloader, so this is
+            // irrelevant now.
+            Entrypoint => None,
             // In an Rspack world, it doesn't make sense to pinpoint a specific
             // index for this.
             Vendor => None,
