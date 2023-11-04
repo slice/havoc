@@ -54,39 +54,51 @@ impl Db {
     ) -> Result<()> {
         let mut transaction = self.pool.begin().await?;
 
-        for stylesheet in build
-            .manifest
-            .assets
-            .iter()
-            .filter_by_type(FeAssetType::Css)
-        {
+        for stylesheet in build.manifest.assets.filter_by_type(FeAssetType::Css) {
             let mut c = Cataloger::new(stylesheet);
             c.insert(&mut transaction).await?;
             c.associate(&mut transaction, build).await?;
         }
 
-        let chunks = extract_assets_from_chunk_loader(&build.manifest, cache).await?;
-        for (chunk_id, chunk_asset) in chunks.iter() {
-            let chunk_id = (*chunk_id)
-                .try_into()
-                .expect("chunk id couldn't fit into i32");
+        // FIXME: Not extracting assets from chunkloader. (sobs)
 
-            let mut c = Cataloger::new(chunk_asset)
-                .kind(DetectedAssetKind::Deep)
-                .chunk_id(Some(chunk_id));
-            c.insert(&mut transaction).await?;
-            c.associate(&mut transaction, build).await?;
-        }
+        // FIXME: Rspack basically kills out the concept of a "RootScript", so
+        // this code should be nuked since the assumption has become invalid.
+        // This also means we kinda have to redesign our database schema now.
+        //
+        // But we should probably still try to track the few notable surface
+        // scripts that exist still, so...
+        let applicable_kinds = [RootScript::ChunkLoader, RootScript::Classes];
 
-        for (script, detected_kind) in build
+        let scripts = build
             .manifest
             .assets
-            .iter()
             .filter_by_type(FeAssetType::Js)
-            .zip(RootScript::assumed_ordering().into_iter())
-        {
-            let mut c =
-                Cataloger::new(script).kind(DetectedAssetKind::SurfaceScript(detected_kind));
+            .collect::<Box<[&FeAsset]>>();
+
+        for (index_within_scripts, script) in scripts.iter().enumerate() {
+            let detected_rootscript_kind = applicable_kinds.iter().find_map(|rootscript| {
+                (rootscript.assumed_index_within_scripts(scripts.len())
+                    == Some(index_within_scripts))
+                .then_some(*rootscript)
+            });
+
+            // Again, Rspack kinda nuked the idea of _all_ surface scripts being
+            // neatly mappable onto a certain type, but this will do. For now. (sobs)
+            let detected_kind = match detected_rootscript_kind {
+                Some(rootscript) => {
+                    tracing::debug!(
+                        ?rootscript,
+                        ?script,
+                        ?index_within_scripts,
+                        "detected (stopgap) surface script kind"
+                    );
+                    DetectedAssetKind::SurfaceScript(rootscript)
+                }
+                None => DetectedAssetKind::Surface,
+            };
+
+            let mut c = Cataloger::new(script).kind(detected_kind);
             c.insert(&mut transaction).await?;
             c.associate(&mut transaction, build).await?;
         }

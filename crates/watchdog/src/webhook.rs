@@ -12,35 +12,6 @@ pub async fn post_build_to_webhook(
 ) -> Result<()> {
     use serde_json::json;
 
-    let assets = &build.manifest.assets;
-
-    let format_asset =
-        |asset: &FeAsset| format!("[`{}.{}`]({})", asset.name, asset.typ.ext(), asset.url());
-
-    let scripts = assets
-        .iter()
-        .filter_by_type(FeAssetType::Js)
-        .map(format_asset)
-        .collect::<Vec<_>>();
-
-    let scripts_listing = if scripts.len() == 4 {
-        scripts
-            .iter()
-            .zip(["chunk loader", "classes", "vendor", "entrypoint"])
-            .map(|(formatted_link, label)| format!("{} ({})", formatted_link, label))
-            .collect::<Vec<_>>()
-            .join("\n")
-    } else {
-        scripts.join("\n")
-    };
-
-    let styles_listing = assets
-        .iter()
-        .filter_by_type(FeAssetType::Css)
-        .map(format_asset)
-        .collect::<Vec<_>>()
-        .join("\n");
-
     let utc_timestamp = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
     let pacific_time = Utc::now()
         .with_timezone(&chrono_tz::America::Los_Angeles)
@@ -50,10 +21,6 @@ pub async fn post_build_to_webhook(
         "title": format!("{} {}", build.manifest.branch, build.number),
         "color": build.manifest.branch.color(),
         "description": format!("Hash: `{}`", build.manifest.hash),
-        "fields": [
-            {"name": "Scripts", "value": scripts_listing, "inline": false},
-            {"name": "Styles", "value": styles_listing, "inline": false},
-        ],
         "footer": {"text": format!("Pacific: {}", pacific_time)},
         "timestamp": utc_timestamp
     });
